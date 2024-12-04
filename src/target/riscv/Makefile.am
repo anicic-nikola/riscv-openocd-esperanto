@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+if RISCV
 include src/target/riscv/transport/Makefile.am
 %C%_libriscv_la_LIBADD = $(top_builddir)/%D%/transport/libocdriscvtransport.la
+endif
 
 noinst_LTLIBRARIES += %D%/libriscv.la
 %C%_libriscv_la_SOURCES = \
