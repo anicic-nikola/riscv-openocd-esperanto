@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+include src/target/riscv/transport/Makefile.am
+%C%_libriscv_la_LIBADD = $(top_builddir)/%D%/transport/libocdriscvtransport.la
+
 noinst_LTLIBRARIES += %D%/libriscv.la
 %C%_libriscv_la_SOURCES = \
        %D%/asm.h \
@@ -15,8 +18,6 @@ noinst_LTLIBRARIES += %D%/libriscv.la
        %D%/riscv-011_reg.h \
        %D%/riscv-013.h \
        %D%/riscv-013_reg.h \
-       %D%/transport/pcie.h \
-       %D%/transport/socket_dmi.h \
        %D%/batch.c \
        %D%/program.c \
        %D%/riscv-011.c \

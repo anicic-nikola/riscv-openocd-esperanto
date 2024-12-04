@@ -21,8 +21,6 @@ include %D%/drivers/Makefile.am
 	%D%/interfaces.c \
 	%D%/tcl.c \
 	%D%/swim.c \
-	%D/src/target/riscv/transport/socket_dmi.h \
-	%D/src/target/riscv/transport/socket_dmi.c \
 	%D%/commands.h \
 	%D%/interface.h \
 	%D%/interfaces.h \
