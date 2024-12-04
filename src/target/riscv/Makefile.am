@@ -15,6 +15,8 @@ noinst_LTLIBRARIES += %D%/libriscv.la
        %D%/riscv-011_reg.h \
        %D%/riscv-013.h \
        %D%/riscv-013_reg.h \
+       %D%/transport/pcie.h \
+       %D%/transport/socket_dmi.h \
        %D%/batch.c \
        %D%/program.c \
        %D%/riscv-011.c \
@@ -24,6 +26,8 @@ noinst_LTLIBRARIES += %D%/libriscv.la
        %D%/riscv.c \
        %D%/riscv_reg.c \
        %D%/riscv_semihosting.c \
+       %D%/transport/pcie.c \
+       %D%/transport/socket_dmi.c \
        %D%/debug_defines.c \
        %D%/debug_reg_printer.c
 
