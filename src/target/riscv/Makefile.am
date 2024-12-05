@@ -1,11 +1,27 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+noinst_LTLIBRARIES += %D%/libriscv.la
+%C%_libriscv_la_LIBADD =
+
 if RISCV
-include src/target/riscv/transport/Makefile.am
-%C%_libriscv_la_LIBADD = $(top_builddir)/%D%/transport/libocdriscvtransport.la
+
+.PHONY: riscv-transport-message
+riscv-transport-message:
+	@echo "Adding RISV transport lib"
+
+check-riscv-lib:
+	@if test -f "%D%/transport/libocdriscvtransport.la"; then \
+		echo "RISC-V transport library found."; \
+	else \
+		echo "Warning: RISC-V transport library not found at %D%/transport/libocdriscvtransport.la"; \
+        exit 1; \
+	fi
+       
+all-local: riscv-transport-message check-riscv-lib
+include %D%/transport/Makefile.am
+%C%_libriscv_la_LIBADD += $(top_builddir)/%D%/transport/libocdriscvtransport.la
 endif
 
-noinst_LTLIBRARIES += %D%/libriscv.la
 %C%_libriscv_la_SOURCES = \
        %D%/asm.h \
        %D%/batch.h \
@@ -29,8 +45,6 @@ noinst_LTLIBRARIES += %D%/libriscv.la
        %D%/riscv.c \
        %D%/riscv_reg.c \
        %D%/riscv_semihosting.c \
-       %D%/transport/pcie.c \
-       %D%/transport/socket_dmi.c \
        %D%/debug_defines.c \
        %D%/debug_reg_printer.c
 

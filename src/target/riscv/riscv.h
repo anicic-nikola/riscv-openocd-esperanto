@@ -430,6 +430,8 @@ int riscv_openocd_poll(struct target *target);
 
 int riscv_halt(struct target *target);
 
+void force_socket_constructor_inclusion(void);
+
 int riscv_openocd_step(
 	struct target *target,
 	int current,

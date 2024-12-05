@@ -3,6 +3,6 @@
 if RISCV
 noinst_LTLIBRARIES += %D%/libocdriscvtransport.la
 %C%_libocdriscvtransport_la_SOURCES = \
-    %D%/socket_dmi.c \
-    %D%/socket_dmi.h
+    %D%/socket_dmi.h \
+    %D%/socket_dmi.c
 endif
