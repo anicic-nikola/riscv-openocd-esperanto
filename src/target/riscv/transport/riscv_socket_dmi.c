@@ -1,4 +1,4 @@
-#include "socket_dmi.h"
+#include "riscv_socket_dmi.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

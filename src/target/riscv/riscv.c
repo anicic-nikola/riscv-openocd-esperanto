@@ -27,7 +27,7 @@
 #include "debug_defines.h"
 #include <helper/bits.h>
 #include "field_helpers.h"
-#include "transport/socket_dmi.h"
+#include "transport/riscv_socket_dmi.h"
 
 /*** JTAG registers. ***/
 

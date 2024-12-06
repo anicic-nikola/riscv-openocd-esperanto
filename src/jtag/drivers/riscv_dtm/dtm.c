@@ -94,7 +94,7 @@ static int riscv_dtm_free(void) {
     return ERROR_OK;
 }
 
-static const char * const riscv_dtm_transports[] = { "jtag", "socket", NULL };
+static const char * const riscv_dtm_transports[] = { "jtag", "socket", "pcie", NULL };
 
 struct adapter_driver riscv_dtm_adapter_driver = {
 	.name = "riscv_dtm",
