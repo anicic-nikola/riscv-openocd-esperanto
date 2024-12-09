@@ -12,10 +12,6 @@
 #include "config.h"
 #endif
 
-#ifdef HAS_RISCV 
-#include "riscv/transport/transport.h"
-#endif
-
 #include "helper/command.h"
 
 /**

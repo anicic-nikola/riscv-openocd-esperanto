@@ -28,6 +28,7 @@
 #include <helper/bits.h>
 #include "field_helpers.h"
 #include "transport/riscv_socket_dmi.h"
+#include "jtag/drivers/riscv_dtm/dtm.h"
 
 /*** JTAG registers. ***/
 
@@ -517,7 +518,7 @@ static int riscv_init_target(struct command_context *cmd_ctx,
 	riscv_semihosting_init(target);
 
 	target->debug_reason = DBG_REASON_DBGRQ;
-
+	
 	return ERROR_OK;
 }
 

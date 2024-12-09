@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "../../../transport/transport.h"
 
 typedef struct dtm_driver {
     const char *name; // e.g., "jtag", "pcie", "socket"
@@ -12,6 +13,7 @@ typedef struct dtm_driver {
     int (*deinit)(struct dtm_driver *driver);
     int (*read_dmi)(struct dtm_driver *driver, uint32_t *data, uint32_t address);
     int (*write_dmi)(struct dtm_driver *driver, uint32_t address, uint32_t data);
+    int (*set_transport)(struct transport *transport);
     void *priv;  // Private data for the driver
 } dtm_driver_t;
 
