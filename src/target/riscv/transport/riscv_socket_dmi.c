@@ -45,29 +45,9 @@ static int recv_all(int sockfd, void *buf, size_t len) {
     return ERROR_OK;
 }
 
-int socket_dmi_init(dtm_driver_t *driver) {
-    // Example: parse host and port from driver->priv (assuming it's a config string)
-    // For simplicity, using default values
-
-    socket_priv_t *priv = malloc(sizeof(socket_priv_t));
-    if (!priv) {
-        LOG_ERROR("Failed to allocate memory for socket_priv_t.");
-        return ERROR_FAIL;
-    }
-
-    strncpy(priv->host, DEFAULT_SOCKET_HOST, sizeof(priv->host) - 1);
-    priv->host[sizeof(priv->host) - 1] = '\0';
-    priv->port = DEFAULT_SOCKET_PORT;
-
-    // priv->sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    priv->sockfd = -1; // Initialize to -1 to indicate not connected yet
-    driver->priv = priv;
-    return ERROR_OK;
-}
-
-int socket_dmi_connect(dtm_driver_t* driver){
+static int socket_dmi_connect(dtm_driver_t* driver){
     if (!driver->priv) {
-        return -1;
+        return ERROR_FAIL;
     }
 
     socket_priv_t *priv = (socket_priv_t *)driver->priv;
@@ -80,7 +60,7 @@ int socket_dmi_connect(dtm_driver_t* driver){
     priv->sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (priv->sockfd < 0) {
         perror("Socket creation failed");
-        return -1;
+        return ERROR_FAIL;
     }
 
     struct sockaddr_in server_addr;
@@ -104,6 +84,25 @@ int socket_dmi_connect(dtm_driver_t* driver){
 
     return ERROR_OK;
 }
+
+int socket_dmi_init(dtm_driver_t *driver) {
+    // Use default values for now and later see if there is something in the openocd config file to connect with
+    // like socket specified host and port from the config file
+    socket_priv_t *priv = malloc(sizeof(socket_priv_t));
+    if (!priv) {
+        LOG_ERROR("Failed to allocate memory for socket_priv_t.");
+        return ERROR_FAIL;
+    }
+
+    strncpy(priv->host, DEFAULT_SOCKET_HOST, sizeof(priv->host) - 1);
+    priv->host[sizeof(priv->host) - 1] = '\0';
+    priv->port = DEFAULT_SOCKET_PORT;
+
+    priv->sockfd = -1; // Initialize to -1 to indicate not connected yet
+    driver->priv = priv;
+    return ERROR_OK;
+}
+
 
 int socket_dmi_deinit(dtm_driver_t *driver) {
     if (!driver->priv) {
@@ -239,7 +238,7 @@ COMMAND_HANDLER(command_socket_port){
     dtm_driver_t *active_driver = get_active_dtm_driver();
     if (!active_driver || strcmp(active_driver->name, "socket") != 0) {
         LOG_ERROR("Active DTM driver is not socket'");
-        return ERROR_COMMAND_SYNTAX_ERROR;
+        return ERROR_FAIL;
     }
 
     socket_priv_t *priv = (socket_priv_t*)active_driver->priv;
@@ -274,7 +273,7 @@ static int socket_dtm_set_transport(struct transport *transport)
     return ERROR_OK;
 }
 
-static dtm_driver_t socket_driver = {
+static dtm_driver_t socket_driver __attribute__((used)) = {
     .name = "socket",
     .init = socket_dmi_init,
     .deinit = socket_dmi_deinit,
@@ -350,7 +349,7 @@ static int socket_transport_init(struct command_context *cmd_ctx)
     return ERROR_OK;
 }
 
-static struct transport socket_transport = {
+static struct transport socket_transport __attribute__((used)) = {
     .name = "socket",
     .select = socket_transport_select,
     .init = socket_transport_init,
@@ -365,7 +364,7 @@ int register_socket_dtm_driver(void) {
     return register_dtm_driver(&socket_driver);
 }
 
-int socket_transport_initialize(void) {
+int register_riscv_socket_transport(void) {
     LOG_DEBUG("Initializing socket DTM driver.");
     if (register_socket_dtm_driver() != 0) {
         LOG_ERROR("Failed to register socket DTM driver.");
@@ -389,7 +388,7 @@ int socket_transport_initialize(void) {
 static void socket_constructor(void) __attribute__ ((constructor));
 static void socket_constructor(void)
 {
-    if(socket_transport_initialize() != 0){
+    if(register_riscv_socket_transport() != 0){
         LOG_ERROR("Failed to initialize socket transport!");
     }
     LOG_DEBUG("Socket transport successfully initialized.");

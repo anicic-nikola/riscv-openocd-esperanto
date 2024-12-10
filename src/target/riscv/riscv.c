@@ -27,7 +27,6 @@
 #include "debug_defines.h"
 #include <helper/bits.h>
 #include "field_helpers.h"
-#include "transport/riscv_socket_dmi.h"
 #include "jtag/drivers/riscv_dtm/dtm.h"
 
 /*** JTAG registers. ***/
@@ -406,13 +405,6 @@ int dtmcontrol_scan_via_bscan(struct target *target, uint32_t out, uint32_t *in_
 	if (in_ptr)
 		*in_ptr = in;
 	return ERROR_OK;
-}
-
-void force_socket_constructor_inclusion(void) {
-	if(socket_transport_initialize() != 0){
-        LOG_ERROR("Failed to initialize socket transport!");
-    }
-    LOG_DEBUG("Socket transport successfully initialized.");
 }
 
 /* TODO: rename "dtmcontrol"-> "dtmcs" */

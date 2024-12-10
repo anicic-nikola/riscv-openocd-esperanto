@@ -5,6 +5,7 @@
 #include <helper/command.h>
 #include <helper/log.h>
 #include "jtag/interface.h"
+#include "../../../target/riscv/transport/riscv_socket_dmi.h"
 
 #define MAX_DTM_DRIVERS 10
 
@@ -20,6 +21,47 @@ int register_dtm_driver(dtm_driver_t *driver) {
     }
     registered_drivers[driver_count++] = driver;
     return ERROR_OK;
+}
+
+static int riscv_dtm_initialize(void) {
+    struct transport *current_transport = get_current_transport();
+    if (!current_transport) {
+        LOG_ERROR("No transport selected.");
+        return ERROR_FAIL;
+    }
+
+    const char *transport_name = current_transport->name;
+
+    if (select_dtm_driver(transport_name) != ERROR_OK) {
+        LOG_ERROR("Failedriverd to select DTM driver '%s'", transport_name);
+        return ERROR_FAIL;
+    }
+
+    dtm_driver_t *selected_dtm_driver = get_active_dtm_driver();
+    if (!selected_dtm_driver) {
+        LOG_ERROR("No DTM driver selected.");
+        return ERROR_FAIL;
+    }
+
+    if (selected_dtm_driver->set_transport && selected_dtm_driver->set_transport(current_transport) != ERROR_OK) {
+        LOG_ERROR("Failed to set transport for DTM driver '%s'", selected_dtm_driver->name);
+        return ERROR_FAIL;
+    }
+    LOG_INFO("DTM Adapter initialized with transport '%s'", transport_name);
+
+    return ERROR_OK;
+}
+
+
+static int riscv_dtm_init(void) {
+    // register all of the possible transports here that this adapter supports based on the current_transport name
+    if (register_riscv_socket_transport() != ERROR_OK) {
+        return ERROR_FAIL;
+    }
+    // if (current_transport && strcmp(current_transport->name, "pcie") == 0) {
+    //     return register_riscv_pcie_transport();
+    // }
+    return riscv_dtm_initialize();
 }
 
 // Retrieve a DTM driver by name
@@ -58,36 +100,6 @@ dtm_driver_t *get_active_dtm_driver(void) {
     return active_driver;
 }
 
-
-static int riscv_dtm_initialize(void) {
-    struct transport *current_transport = get_current_transport();
-    if (!current_transport) {
-        LOG_ERROR("No transport selected.");
-        return ERROR_FAIL;
-    }
-
-    const char *transport_name = current_transport->name;
-
-    if (select_dtm_driver(transport_name) != ERROR_OK) {
-        LOG_ERROR("Failedriverd to select DTM driver '%s'", transport_name);
-        return ERROR_FAIL;
-    }
-
-    dtm_driver_t *selected_dtm_driver = get_active_dtm_driver();
-    if (!selected_dtm_driver) {
-        LOG_ERROR("No DTM driver selected.");
-        return ERROR_FAIL;
-    }
-
-    if (selected_dtm_driver->set_transport && selected_dtm_driver->set_transport(current_transport) != ERROR_OK) {
-        LOG_ERROR("Failed to set transport for DTM driver '%s'", selected_dtm_driver->name);
-        return ERROR_FAIL;
-    }
-    LOG_INFO("DTM Adapter initialized with transport '%s'", transport_name);
-
-    return ERROR_OK;
-}
-
 static int riscv_dtm_free(void) {
     active_driver = get_active_dtm_driver();
     active_driver->deinit(active_driver);
@@ -100,6 +112,6 @@ struct adapter_driver riscv_dtm_adapter_driver = {
 	.name = "riscv_dtm",
 	.transports = riscv_dtm_transports,
 
-	.init = riscv_dtm_initialize,
+	.init = riscv_dtm_init,
 	.quit = riscv_dtm_free,
 };
