@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #ifdef HAVE_CONFIG_H
@@ -488,23 +489,25 @@ static int riscv_init_target(struct command_context *cmd_ctx,
 	info->cmd_ctx = cmd_ctx;
 	info->reset_delays_wait = -1;
 
-	select_dtmcontrol.num_bits = target->tap->ir_length;
-	select_dbus.num_bits = target->tap->ir_length;
-	select_idcode.num_bits = target->tap->ir_length;
+	if (strcmp(target->type->name, "riscv") != 0){
+		select_dtmcontrol.num_bits = target->tap->ir_length;
+		select_dbus.num_bits = target->tap->ir_length;
+		select_idcode.num_bits = target->tap->ir_length;
 
-	if (bscan_tunnel_ir_width != 0) {
-		uint32_t ir_user4_raw = bscan_tunnel_ir_id;
-		/* Provide a default value which target some Xilinx FPGA USER4 IR */
-		if (ir_user4_raw == 0) {
-			assert(target->tap->ir_length >= 6);
-			ir_user4_raw = 0x23 << (target->tap->ir_length - 6);
+		if (bscan_tunnel_ir_width != 0) {
+			uint32_t ir_user4_raw = bscan_tunnel_ir_id;
+			/* Provide a default value which target some Xilinx FPGA USER4 IR */
+			if (ir_user4_raw == 0) {
+				assert(target->tap->ir_length >= 6);
+				ir_user4_raw = 0x23 << (target->tap->ir_length - 6);
+			}
+			h_u32_to_le(ir_user4, ir_user4_raw);
+			select_user4.num_bits = target->tap->ir_length;
+			if (bscan_tunnel_type == BSCAN_TUNNEL_DATA_REGISTER)
+				bscan_tunnel_data_register_select_dmi[1].num_bits = bscan_tunnel_ir_width;
+			else /* BSCAN_TUNNEL_NESTED_TAP */
+				bscan_tunnel_nested_tap_select_dmi[2].num_bits = bscan_tunnel_ir_width;
 		}
-		h_u32_to_le(ir_user4, ir_user4_raw);
-		select_user4.num_bits = target->tap->ir_length;
-		if (bscan_tunnel_type == BSCAN_TUNNEL_DATA_REGISTER)
-			bscan_tunnel_data_register_select_dmi[1].num_bits = bscan_tunnel_ir_width;
-		else /* BSCAN_TUNNEL_NESTED_TAP */
-			bscan_tunnel_nested_tap_select_dmi[2].num_bits = bscan_tunnel_ir_width;
 	}
 
 	riscv_semihosting_init(target);

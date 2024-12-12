@@ -5693,7 +5693,7 @@ static int target_create(struct jim_getopt_info *goi)
 	cmd_ctx = current_command_context(goi->interp);
 	assert(cmd_ctx);
 
-	if (goi->argc < 3) {
+	if (goi->argc < 2) {
 		Jim_WrongNumArgs(goi->interp, 1, goi->argv, "?name? ?type? ..options...");
 		return JIM_ERR;
 	}
@@ -5817,13 +5817,13 @@ static int target_create(struct jim_getopt_info *goi)
 				e = JIM_ERR;
 			}
 		} else {
-			if (!target->tap_configured) {
+			if (!target->tap_configured && strcmp(target->type->name, "riscv") != 0) {
 				Jim_SetResultString(goi->interp, "-chain-position ?name? required when creating target", -1);
 				e = JIM_ERR;
 			}
 		}
 		/* tap must be set after target was configured */
-		if (!target->tap)
+		if (!target->tap && strcmp(target->type->name, "riscv") != 0)
 			e = JIM_ERR;
 	}
 
@@ -6036,7 +6036,7 @@ static int jim_target_create(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
 	struct jim_getopt_info goi;
 	jim_getopt_setup(&goi, interp, argc - 1, argv + 1);
-	if (goi.argc < 3) {
+	if (goi.argc < 2) {
 		Jim_WrongNumArgs(goi.interp, goi.argc, goi.argv,
 			"<name> <target_type> [<target_options> ...]");
 		return JIM_ERR;
