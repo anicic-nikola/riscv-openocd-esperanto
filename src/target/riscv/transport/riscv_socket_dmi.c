@@ -23,7 +23,7 @@ typedef struct {
 #define RESPONSE_OK 0x00
 #define RESPONSE_ERROR 0x01
 
-#define DEFAULT_SOCKET_HOST "localhost"
+#define DEFAULT_SOCKET_HOST "127.0.0.1"
 #define DEFAULT_SOCKET_PORT 5555
 
 static int transportIsRegistered = -1;
