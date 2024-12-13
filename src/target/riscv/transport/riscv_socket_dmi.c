@@ -26,6 +26,8 @@ typedef struct {
 #define DEFAULT_SOCKET_HOST "localhost"
 #define DEFAULT_SOCKET_PORT 5555
 
+static int transportIsRegistered = -1;
+
 // Helper function to receive data with error handling
 static int recv_all(int sockfd, void *buf, size_t len) {
     size_t to_read = len;
@@ -373,11 +375,16 @@ int register_riscv_socket_transport(void) {
         LOG_DEBUG("Socket DTM driver registered successfully.");
     }
 
+    if (transportIsRegistered != -1){
+        LOG_DEBUG("Socket transport already registered successfully.");
+        return ERROR_OK;
+    }
     LOG_DEBUG("Initializing socket transport.");
     if (socket_transport_register() != ERROR_OK) {
         LOG_ERROR("Failed to register socket transport.");
         return ERROR_FAIL;
     } else {
+        transportIsRegistered = 1;
         LOG_DEBUG("Socket transport registered successfully.");
     }
 

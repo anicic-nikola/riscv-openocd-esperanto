@@ -26,6 +26,7 @@
  *   andreas.fritiofson@gmail.com                                          *
  ***************************************************************************/
 
+#include <string.h>
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -725,10 +726,12 @@ int target_examine(void)
 
 	for (target = all_targets; target; target = target->next) {
 		/* defer examination, but don't skip it */
-		if (!target->tap->enabled) {
-			jtag_register_event_callback(jtag_enable_callback,
-					target);
-			continue;
+		if (strcmp(target->type->name, "riscv") != 0){
+			if (!target->tap->enabled) {
+				jtag_register_event_callback(jtag_enable_callback,
+						target);
+				continue;
+			}
 		}
 
 		if (target->defer_examine)
