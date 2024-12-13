@@ -390,8 +390,13 @@ static int increase_dmi_busy_delay(struct target *target)
 {
 	RISCV013_INFO(info);
 
-	int res = dtmcontrol_scan(target, DTM_DTMCS_DMIRESET,
-			NULL /* discard result */);
+	int res = -1;
+	if (strcmp(target->type->name, "riscv") != 0){
+		res = dtmcontrol_scan(target, DTM_DTMCS_DMIRESET,NULL /* discard result */);
+	} else {
+		res = dtmcontrol_write(target, DTM_DTMCS_DMIRESET, NULL /* discard result */);
+	}
+	
 	if (res != ERROR_OK)
 		return res;
 
@@ -1921,10 +1926,19 @@ static int examine(struct target *target)
 	LOG_TARGET_DEBUG(target, "dbgbase=0x%x", target->dbgbase);
 
 	uint32_t dtmcontrol;
-	if (dtmcontrol_scan(target, 0, &dtmcontrol) != ERROR_OK || dtmcontrol == 0) {
-		LOG_TARGET_ERROR(target, "Could not scan dtmcontrol. Check JTAG connectivity/board power.");
-		return ERROR_FAIL;
+	
+	if (strcmp(target->type->name, "riscv") != 0){
+		if (dtmcontrol_scan(target, 0, &dtmcontrol) != ERROR_OK || dtmcontrol == 0) {
+			LOG_TARGET_ERROR(target, "Could not scan dtmcontrol. Check JTAG connectivity/board power.");
+			return ERROR_FAIL;
+		}
+	} else {
+		if (dtmcontrol_write(target, 0, &dtmcontrol) != ERROR_OK || dtmcontrol == 0) {
+			LOG_TARGET_ERROR(target, "Could not read dtmcontrol. Check socket connection/board power.");
+			return ERROR_FAIL;
+		}
 	}
+	
 
 	LOG_TARGET_DEBUG(target, "dtmcontrol=0x%x", dtmcontrol);
 	LOG_DEBUG_REG(target, DTM_DTMCS, dtmcontrol);

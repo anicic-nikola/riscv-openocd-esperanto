@@ -29,6 +29,7 @@
 #include <helper/bits.h>
 #include "field_helpers.h"
 #include "jtag/drivers/riscv_dtm/dtm.h"
+#include "target/riscv/transport/riscv_socket_dmi.h"
 
 /*** JTAG registers. ***/
 
@@ -446,6 +447,33 @@ int dtmcontrol_scan(struct target *target, uint32_t out, uint32_t *in_ptr)
 	}
 	return ERROR_OK;
 }
+
+
+int dtmcontrol_write(struct target *target, uint32_t out, uint32_t *in_ptr)
+{
+	dtm_driver_t *driver = get_active_dtm_driver();
+    if (!driver) {
+        LOG_ERROR("No active DTM driver.");
+        return ERROR_FAIL;
+    }
+
+    uint32_t dtmcontrol_dmi_address = riscv_get_dmi_address(target, DTMCONTROL);
+
+    if (socket_dmi_write_dmi(driver, dtmcontrol_dmi_address, out) != ERROR_OK) {
+        LOG_ERROR("Failed to write to DTMCONTROL through socket.");
+        return ERROR_FAIL;
+    }
+
+    if (in_ptr) {
+        if (socket_dmi_read_dmi(driver, in_ptr, dtmcontrol_dmi_address) != ERROR_OK) {
+            LOG_ERROR("Failed to read back DTMCONTROL through socket.");
+            return ERROR_FAIL;
+        }
+    }
+
+    return ERROR_OK;
+}
+
 
 static struct target_type *get_target_type(struct target *target)
 {
@@ -2301,10 +2329,18 @@ static int riscv_examine(struct target *target)
 
 	RISCV_INFO(info);
 	uint32_t dtmcontrol;
-	if (dtmcontrol_scan(target, 0, &dtmcontrol) != ERROR_OK || dtmcontrol == 0) {
-		LOG_TARGET_ERROR(target, "Could not read dtmcontrol. Check JTAG connectivity/board power.");
-		return ERROR_FAIL;
+	if (strcmp(target->type->name, "riscv") != 0){
+		if (dtmcontrol_scan(target, 0, &dtmcontrol) != ERROR_OK || dtmcontrol == 0) {
+			LOG_TARGET_ERROR(target, "Could not read dtmcontrol. Check JTAG connectivity/board power.");
+			return ERROR_FAIL;
+		}
+	} else {
+		if (dtmcontrol_write(target, 0, &dtmcontrol) != ERROR_OK || dtmcontrol == 0) {
+			LOG_TARGET_ERROR(target, "Could not read dtmcontrol. Check socket connection/board power.");
+			return ERROR_FAIL;
+		}
 	}
+	
 	LOG_TARGET_DEBUG(target, "dtmcontrol=0x%x", dtmcontrol);
 	info->dtm_version = get_field(dtmcontrol, DTMCONTROL_VERSION);
 	LOG_TARGET_DEBUG(target, "version=0x%x", info->dtm_version);
