@@ -166,10 +166,10 @@ int socket_dmi_read_dmi(dtm_driver_t *driver, uint32_t *data, uint32_t address) 
         return -1;
     }
 
-    *data = (buffer[0] << 24) |
-            (buffer[1] << 16) |
-            (buffer[2] << 8) |
-            buffer[3];
+    *data = (buffer[1] << 24) |
+            (buffer[2] << 16) |
+            (buffer[3] << 8) |
+            buffer[4];
 
     return ERROR_OK;
 }
