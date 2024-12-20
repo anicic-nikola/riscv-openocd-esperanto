@@ -31,17 +31,29 @@ static int transportIsRegistered = -1;
 // Helper function to receive data with error handling
 static int recv_all(int sockfd, void *buf, size_t len) {
     size_t to_read = len;
+    // This should work because of: https://wandbox.org/permlink/4Q82Lg05MVcyS0Hn
+    char *temp_buf = (char *)buf;
     while (to_read > 0) {
-        ssize_t bytes_read = recv(sockfd, buf, to_read, 0);
-        if (bytes_read <= 0) {
-            if (bytes_read == 0) {
-                LOG_ERROR("Socket closed by remote host");
+        // Calculate remaining space in the buffer
+        size_t remaining_space = len - (temp_buf - (char *)buf);
+
+        // Read up to the remaining space or to_read, whichever is smaller
+        ssize_t bytes_read = recv(sockfd, temp_buf, (remaining_space < to_read) ? remaining_space : to_read, 0);
+
+        if (bytes_read < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // No data available right now, try again later
+                continue;
             } else {
                 LOG_ERROR("recv error: %s", strerror(errno));
+                return ERROR_FAIL;
             }
+        } else if (bytes_read == 0) {
+            LOG_ERROR("Socket closed by remote host");
             return ERROR_FAIL;
         }
-        buf = (char*)buf + bytes_read;
+
+        temp_buf += bytes_read;
         to_read -= bytes_read;
     }
     return ERROR_OK;
@@ -153,23 +165,24 @@ int socket_dmi_read_dmi(dtm_driver_t *driver, uint32_t *data, uint32_t address) 
         return ERROR_FAIL;
     }
 
-    if (recv_all(priv->sockfd, buffer, 1) != 0) {
+    uint8_t response_code;
+    if (recv_all(priv->sockfd, &response_code, 1) != 0) {
         return -1;
     }
-    if (buffer[0] != RESPONSE_OK) {
-        LOG_ERROR("DMI read failed (error code: 0x%X)", buffer[0]);
-        return -1;
-    }
-
-    // Now, receive data
-    if (recv_all(priv->sockfd, buffer, 4) != 0) {
+    if (response_code != RESPONSE_OK) {
+        LOG_ERROR("DMI read failed (error code: 0x%X)", response_code);
         return -1;
     }
 
-    *data = (buffer[1] << 24) |
-            (buffer[2] << 16) |
-            (buffer[3] << 8) |
-            buffer[4];
+    uint8_t data_buffer[4];
+    if (recv_all(priv->sockfd, data_buffer, 4) != 0) {
+        return -1;
+    }
+
+    *data = (data_buffer[1] << 24) |
+            (data_buffer[2] << 16) |
+            (data_buffer[3] << 8) |
+            data_buffer[4];
 
     return ERROR_OK;
 }
