@@ -38,7 +38,7 @@ dmi_mem = {
     DMI_PROGBUF0: 0x00000000,
 }
 
-def handle_dmi_read(address):
+def handle_dmi_read(address, conn):
     """Handles DMI read requests."""
     if address in dmi_mem:
         data = dmi_mem[address]
@@ -46,12 +46,13 @@ def handle_dmi_read(address):
         ipdb.set_trace()
         if address == DMI_DMCONTROL:
             print(f"  DTMCONTROL read! Returning: 0x{data:08X}")
-            data = 0x800e0f01  # Example: Set dmactive (bit 31) and dmireset (bit 0)
+            data = 0x41  # Example: Set dmactive (bit 31) and dmireset (bit 0)
         # Pack the 32-bit data only once:
         response_data = struct.pack(">I", data) 
         # Construct the response by concatenating status and data:
         response = struct.pack(">B", RESPONSE_OK) + response_data
         time.sleep(0.05)
+        print(f"Sending response: {response!r}")  # !r for printable representation
         conn.sendall(response)
         return data
     else:
@@ -144,23 +145,22 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 
                     while len(buffer) >= 6:
                         command, address, data_length = struct.unpack(">BIB", buffer[:6])
-                        print(f"  Shifted address: 0x{address:08X}")
+                        print(f"Unpacked received address: 0x{address:08X}")
 
                         if command == READ_COMMAND:
-                            data = handle_dmi_read(address)
-                            if data is not None:
-                                response_data = struct.pack(">I", data)
-                                response = struct.pack(">BI", RESPONSE_OK, data)
-                                conn.sendall(response)
-                            else:
-                                conn.sendall(struct.pack(">BI", RESPONSE_ERROR, 0))
+                            data = handle_dmi_read(address, conn)
+                            # if data is not None:
+                            #     response_data = struct.pack(">I", data)
+                            #     response = struct.pack(">BI", RESPONSE_OK, data)
+                            #     conn.sendall(response)
+                            # else:
+                            #     conn.sendall(struct.pack(">BI", RESPONSE_ERROR, 0))
                             buffer = buffer[6:]
 
                         elif command == WRITE_COMMAND:
                             if len(buffer) >= 10:
                                 ipdb.set_trace()
                                 data = struct.unpack(">I", buffer[6:10])[0]
-                                # Use the shifted address:
                                 handle_dmi_write(address, data)
                                 conn.sendall(struct.pack(">BI", RESPONSE_OK, 0))
                                 buffer = buffer[10:]
