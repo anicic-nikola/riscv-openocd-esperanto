@@ -46,7 +46,6 @@ def handle_dmi_read(address):
         ipdb.set_trace()
         if address == DMI_DMCONTROL:
             print(f"  DTMCONTROL read! Returning: 0x{data:08X}")
-        if address == 0x40:
             data = 0x800e0f01  # Example: Set dmactive (bit 31) and dmireset (bit 0)
         # Pack the 32-bit data only once:
         response_data = struct.pack(">I", data) 
@@ -145,7 +144,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 
                     while len(buffer) >= 6:
                         command, address, data_length = struct.unpack(">BIB", buffer[:6])
-                        address = address << 2 
                         print(f"  Shifted address: 0x{address:08X}")
 
                         if command == READ_COMMAND:

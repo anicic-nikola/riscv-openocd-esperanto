@@ -28,17 +28,11 @@ typedef struct {
 
 static int transportIsRegistered = -1;
 
-// Helper function to receive data with error handling
 static int recv_all(int sockfd, void *buf, size_t len) {
     size_t to_read = len;
-    // This should work because of: https://wandbox.org/permlink/4Q82Lg05MVcyS0Hn
     char *temp_buf = (char *)buf;
     while (to_read > 0) {
-        // Calculate remaining space in the buffer
-        size_t remaining_space = len - (temp_buf - (char *)buf);
-
-        // Read up to the remaining space or to_read, whichever is smaller
-        ssize_t bytes_read = recv(sockfd, temp_buf, (remaining_space < to_read) ? remaining_space : to_read, 0);
+        ssize_t bytes_read = recv(sockfd, temp_buf, to_read, 0);
 
         if (bytes_read < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -52,6 +46,13 @@ static int recv_all(int sockfd, void *buf, size_t len) {
             LOG_ERROR("Socket closed by remote host");
             return ERROR_FAIL;
         }
+
+        // *** TEMPORARY DEBUGGING ***
+        for (int i = 0; i < bytes_read; i++) {
+            printf("recv_all: Received byte at index %d: 0x%02X\n", 
+                   (int)(temp_buf - (char*)buf + i), (unsigned char)temp_buf[i]);
+        }
+        // ***************************
 
         temp_buf += bytes_read;
         to_read -= bytes_read;
@@ -179,10 +180,10 @@ int socket_dmi_read_dmi(dtm_driver_t *driver, uint32_t *data, uint32_t address) 
         return -1;
     }
 
-    *data = (data_buffer[1] << 24) |
-            (data_buffer[2] << 16) |
-            (data_buffer[3] << 8) |
-            data_buffer[4];
+    *data = (data_buffer[0] << 24) |
+            (data_buffer[1] << 16) |
+            (data_buffer[2] << 8) |
+            data_buffer[3];
 
     return ERROR_OK;
 }
