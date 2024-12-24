@@ -43,7 +43,7 @@ def handle_dmi_read(address, conn):
     if address in dmi_mem:
         data = dmi_mem[address]
         print(f"DMI Read: Addr=0x{address:02X}, Data=0x{data:08X}")
-        ipdb.set_trace()
+        # ipdb.set_trace()
         if address == DMI_DMCONTROL:
             print(f"  DTMCONTROL read! Returning: 0x{data:08X}")
             data = 0x41  # Example: Set dmactive (bit 31) and dmireset (bit 0)
@@ -51,7 +51,7 @@ def handle_dmi_read(address, conn):
         response_data = struct.pack(">I", data) 
         # Construct the response by concatenating status and data:
         response = struct.pack(">B", RESPONSE_OK) + response_data
-        time.sleep(0.05)
+        time.sleep(0.1)
         print(f"Sending response: {response!r}")  # !r for printable representation
         conn.sendall(response)
         return data
@@ -61,7 +61,7 @@ def handle_dmi_read(address, conn):
 
 def handle_dmi_write(address, data):
     print(f"DMI Write: Addr=0x{address:02X}, Data=0x{data:08X}")
-    ipdb.set_trace()
+    # ipdb.set_trace()
     if address == DMI_DMCONTROL:
         # Implement basic DMCONTROL handling (e.g., halt, resume)
         dmi_mem[DMI_DMCONTROL] = data # Write data here
@@ -83,7 +83,7 @@ def handle_dmi_write(address, data):
         cmderr = execute_abstract_command(data)
         dmi_mem[DMI_ABSTRACTCS] = (dmi_mem[DMI_ABSTRACTCS] & ~0x7) | cmderr
     else:
-        ipdb.set_trace()
+        # ipdb.set_trace()
         dmi_mem[address] = data  # Now data is the original value 
         
 def execute_abstract_command(command):
@@ -128,6 +128,10 @@ def execute_abstract_command(command):
 # --- Main Server Loop ---
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.bind((HOST, PORT))
+
+    s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    s.settimeout(None)
+
     s.listen()
     print(f"Server listening on {HOST}:{PORT}")
     while True:
@@ -149,17 +153,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 
                         if command == READ_COMMAND:
                             data = handle_dmi_read(address, conn)
-                            # if data is not None:
-                            #     response_data = struct.pack(">I", data)
-                            #     response = struct.pack(">BI", RESPONSE_OK, data)
-                            #     conn.sendall(response)
-                            # else:
-                            #     conn.sendall(struct.pack(">BI", RESPONSE_ERROR, 0))
                             buffer = buffer[6:]
 
                         elif command == WRITE_COMMAND:
                             if len(buffer) >= 10:
-                                ipdb.set_trace()
+                                # ipdb.set_trace()
                                 data = struct.unpack(">I", buffer[6:10])[0]
                                 handle_dmi_write(address, data)
                                 conn.sendall(struct.pack(">BI", RESPONSE_OK, 0))

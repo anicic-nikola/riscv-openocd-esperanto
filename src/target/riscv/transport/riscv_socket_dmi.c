@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
 #include "transport/transport.h"
 #include "target/target.h"
 #include "target/riscv/riscv.h"
@@ -31,33 +32,28 @@ static int transportIsRegistered = -1;
 static int recv_all(int sockfd, void *buf, size_t len) {
     size_t to_read = len;
     char *temp_buf = (char *)buf;
+    size_t total_bytes_read = 0;
+
     while (to_read > 0) {
-        ssize_t bytes_read = recv(sockfd, temp_buf, to_read, 0);
+        ssize_t bytes_read = recv(sockfd, temp_buf + total_bytes_read, to_read, 0);
 
         if (bytes_read < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                // No data available right now, try again later
-                continue;
-            } else {
-                LOG_ERROR("recv error: %s", strerror(errno));
-                return ERROR_FAIL;
-            }
+            LOG_ERROR("recv error: %s", strerror(errno));
+            return -1; 
         } else if (bytes_read == 0) {
-            LOG_ERROR("Socket closed by remote host");
-            return ERROR_FAIL;
+            if (total_bytes_read < len) {
+                LOG_ERROR("Incomplete read: expected %zu bytes, got %zu", len, total_bytes_read);
+                return -1; 
+            } else {
+                break; 
+            }
         }
 
-        // *** TEMPORARY DEBUGGING ***
-        for (int i = 0; i < bytes_read; i++) {
-            printf("recv_all: Received byte at index %d: 0x%02X\n", 
-                   (int)(temp_buf - (char*)buf + i), (unsigned char)temp_buf[i]);
-        }
-        // ***************************
-
-        temp_buf += bytes_read;
+        total_bytes_read += bytes_read;
         to_read -= bytes_read;
     }
-    return ERROR_OK;
+
+    return total_bytes_read;
 }
 
 static int socket_dmi_connect(dtm_driver_t* driver){
@@ -82,6 +78,26 @@ static int socket_dmi_connect(dtm_driver_t* driver){
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(priv->port);
+
+
+    // Disable Nagle algorithm
+    int flag = 1;
+    if (setsockopt(priv->sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0) {
+        perror("setsockopt(TCP_NODELAY) failed");
+        return ERROR_FAIL;
+    }
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+    if (setsockopt(priv->sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+        perror("setsockopt(SO_RCVTIMEO) failed");
+        return ERROR_FAIL;
+    }
+    if (setsockopt(priv->sockfd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+        perror("setsockopt(SO_SNDTIMEO) failed");
+        return ERROR_FAIL;
+    }
+
 
     if (inet_pton(AF_INET, priv->host, &server_addr.sin_addr) <= 0) {
         perror("Invalid address/ Address not supported");
@@ -166,24 +182,41 @@ int socket_dmi_read_dmi(dtm_driver_t *driver, uint32_t *data, uint32_t address) 
         return ERROR_FAIL;
     }
 
-    uint8_t response_code;
-    if (recv_all(priv->sockfd, &response_code, 1) != 0) {
-        return -1;
+    uint8_t response_buffer[1];
+    ssize_t received_bytes = recv_all(priv->sockfd, response_buffer, 1);
+    printf("response_buffer: 0x%02X\n", response_buffer[0]);
+    if (received_bytes != 1) {
+        LOG_ERROR("Failed to receive response byte: received %zd bytes, expected 1", received_bytes);
+        return ERROR_FAIL;
     }
-    if (response_code != RESPONSE_OK) {
-        LOG_ERROR("DMI read failed (error code: 0x%X)", response_code);
+
+    if (response_buffer[0] != RESPONSE_OK) {
+        LOG_ERROR("DMI read failed (error code: 0x%X)", response_buffer[0]);
         return -1;
     }
 
     uint8_t data_buffer[4];
-    if (recv_all(priv->sockfd, data_buffer, 4) != 0) {
-        return -1;
+    received_bytes = recv_all(priv->sockfd, data_buffer, 4);
+
+    printf("data_buffer: ");
+    for (int i = 0; i < 4; i++) {
+        printf("0x%02X ", data_buffer[i]);
     }
+    printf("\n");
+
+    if (received_bytes != 4) {
+        LOG_ERROR("Failed to receive data: received %zd bytes, expected 4", received_bytes);
+        return ERROR_FAIL;
+    }
+
+    // *data = convert_from_be(data_buffer);
 
     *data = (data_buffer[0] << 24) |
             (data_buffer[1] << 16) |
             (data_buffer[2] << 8) |
             data_buffer[3];
+
+    printf("*data: 0x%08X\n", *data);
 
     return ERROR_OK;
 }
@@ -221,12 +254,13 @@ int socket_dmi_write_dmi(dtm_driver_t *driver, uint32_t address, uint32_t data) 
         return ERROR_FAIL;
     }
 
-    // Receive response code
-    if (recv_all(priv->sockfd, buffer, 1) != 0) {
-        return -1;
+    uint8_t recv_buffer[1];
+    ssize_t received_bytes = recv_all(priv->sockfd, recv_buffer, 1);
+    if (received_bytes != 1) {
+        return ERROR_FAIL;
     }
 
-    if (buffer[0] != RESPONSE_OK) {
+    if (recv_buffer[0] != RESPONSE_OK) {
         LOG_ERROR("DMI write failed (error code: 0x%X)", buffer[0]);
         return -1;
     }
