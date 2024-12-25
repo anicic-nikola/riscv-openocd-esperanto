@@ -9,6 +9,7 @@
 #include "debug_reg_printer.h"
 #include "riscv.h"
 #include "field_helpers.h"
+#include "target/target_type.h"
 
 #define DTM_DMI_MAX_ADDRESS_LENGTH	((1<<DTM_DTMCS_ABITS_LENGTH)-1)
 #define DMI_SCAN_MAX_BIT_LENGTH (DTM_DMI_MAX_ADDRESS_LENGTH + DTM_DMI_DATA_LENGTH + DTM_DMI_OP_LENGTH)
@@ -129,7 +130,9 @@ static void add_idle_before_batch(const struct riscv_batch *batch, size_t start_
 			idle_change);
 	assert(idle_change <= INT_MAX);
 	// TODO: get rid of the JTAG dependency here
-	jtag_add_runtest(idle_change, TAP_IDLE);
+	if (strcmp(batch->target->type->name, "riscv") != 0) {
+		jtag_add_runtest(idle_change, TAP_IDLE);
+	}
 }
 
 static int get_delay(const struct riscv_batch *batch, size_t scan_idx,
@@ -291,19 +294,25 @@ int riscv_batch_run_from(struct riscv_batch *batch, size_t start_idx,
 		if (bscan_tunnel_ir_width != 0)
 			riscv_add_bscan_tunneled_scan(batch->target, batch->fields + i, batch->bscan_ctxt + i);
 		else
-			jtag_add_dr_scan(batch->target->tap, 1, batch->fields + i, TAP_IDLE);
+			if (strcmp(batch->target->type->name, "riscv") != 0) {
+				jtag_add_dr_scan(batch->target->tap, 1, batch->fields + i, TAP_IDLE);
+			}
 
 		delay = get_delay(batch, i, delays, resets_delays,
 				reset_delays_after);
 		if (delay > 0)
-			jtag_add_runtest(delay, TAP_IDLE);
+			if (strcmp(batch->target->type->name, "riscv") != 0) {	
+				jtag_add_runtest(delay, TAP_IDLE);
+			}
 	}
 
 	keep_alive();
 
-	if (jtag_execute_queue() != ERROR_OK) {
-		LOG_TARGET_ERROR(batch->target, "Unable to execute JTAG queue");
-		return ERROR_FAIL;
+	if (strcmp(batch->target->type->name, "riscv") != 0) {	
+		if (jtag_execute_queue() != ERROR_OK) {
+			LOG_TARGET_ERROR(batch->target, "Unable to execute JTAG queue");
+			return ERROR_FAIL;
+		}
 	}
 
 	keep_alive();

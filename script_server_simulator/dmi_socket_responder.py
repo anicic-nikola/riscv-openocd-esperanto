@@ -40,10 +40,11 @@ dmi_mem = {
 
 def handle_dmi_read(address, conn):
     """Handles DMI read requests."""
+    # ipdb.set_trace()
     if address in dmi_mem:
         data = dmi_mem[address]
         print(f"DMI Read: Addr=0x{address:02X}, Data=0x{data:08X}")
-        ipdb.set_trace()
+        # ipdb.set_trace()
         if address == DMI_DMCONTROL:
             print(f"  DTMCONTROL read! Returning: 0x{data:08X}")
             data = 0x41  # Example: Set dmactive (bit 31) and dmireset (bit 0)
@@ -61,7 +62,7 @@ def handle_dmi_read(address, conn):
 
 def handle_dmi_write(address, data):
     print(f"DMI Write: Addr=0x{address:02X}, Data=0x{data:08X}")
-    ipdb.set_trace()
+    # ipdb.set_trace()
     if address == DMI_DMCONTROL:
         # Implement basic DMCONTROL handling (e.g., halt, resume)
         dmi_mem[DMI_DMCONTROL] = data # Write data here
@@ -83,7 +84,7 @@ def handle_dmi_write(address, data):
         cmderr = execute_abstract_command(data)
         dmi_mem[DMI_ABSTRACTCS] = (dmi_mem[DMI_ABSTRACTCS] & ~0x7) | cmderr
     else:
-        ipdb.set_trace()
+        # ipdb.set_trace()
         dmi_mem[address] = data  # Now data is the original value 
         
 def execute_abstract_command(command):
@@ -137,6 +138,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             buffer = b''
             while True:
                 try:
+                    # ipdb.set_trace()
                     data = conn.recv(1024)
                     if not data:
                         break
@@ -148,12 +150,13 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                         print(f"Unpacked received address: 0x{address:08X}")
 
                         if command == READ_COMMAND:
+                            # ipdb.set_trace()
                             data = handle_dmi_read(address, conn)
                             buffer = buffer[6:]
 
                         elif command == WRITE_COMMAND:
                             if len(buffer) >= 10:
-                                ipdb.set_trace()
+                                # ipdb.set_trace()
                                 data = struct.unpack(">I", buffer[6:10])[0]
                                 handle_dmi_write(address, data)
                                 conn.sendall(struct.pack(">BI", RESPONSE_OK, 0))
@@ -168,6 +171,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 except ConnectionResetError:
                     print("Client disconnected")
                     break
+                buffer = b''
 
 # This works somehow
 # =============================================================================================
