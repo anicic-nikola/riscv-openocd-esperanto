@@ -10,6 +10,10 @@
 #include "target/riscv/riscv.h"
 #include "helper/log.h"
 
+#include <fcntl.h>
+#include <sys/select.h>
+#include <errno.h>
+
 typedef struct {
     int sockfd;
     char host[256];
@@ -29,6 +33,60 @@ typedef struct {
 
 static int transportIsRegistered = -1;
 
+int clear_socket_buffer(int sockfd) {
+    int flags = fcntl(sockfd, F_GETFL, 0);
+    if (flags == -1) {
+        perror("fcntl(F_GETFL)");
+        return -1;
+    }
+
+    // Make socket non-blocking
+    if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        perror("fcntl(F_SETFL, O_NONBLOCK)");
+        return -1;
+    }
+
+    fd_set readfds;
+    struct timeval timeout;
+    int ret;
+    char buf[1024]; // Buffer to discard data
+
+    do {
+        FD_ZERO(&readfds);
+        FD_SET(sockfd, &readfds);
+
+        // Set a short timeout (e.g., 100 milliseconds)
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 100000;
+
+        ret = select(sockfd + 1, &readfds, NULL, NULL, &timeout);
+        if (ret == -1) {
+            perror("select");
+            return -1;
+        } else if (ret > 0) {
+            // Data is available to read
+            ssize_t bytes_read = recv(sockfd, buf, sizeof(buf), 0);
+            if (bytes_read == -1) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    // No more data (expected in non-blocking mode)
+                    break;
+                } else {
+                    perror("recv");
+                    return -1;
+                }
+            }
+        }
+    } while (ret > 0);
+
+    // Restore original socket flags (if needed)
+    if (fcntl(sockfd, F_SETFL, flags) == -1) {
+        perror("fcntl(F_SETFL, flags)");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int recv_all(int sockfd, void *buf, size_t len) {
     size_t to_read = len;
     char *temp_buf = (char *)buf;
@@ -39,14 +97,10 @@ static int recv_all(int sockfd, void *buf, size_t len) {
 
         if (bytes_read < 0) {
             LOG_ERROR("recv error: %s", strerror(errno));
-            return -1; 
+            return ERROR_FAIL; 
         } else if (bytes_read == 0) {
-            if (total_bytes_read < len) {
-                LOG_ERROR("Incomplete read: expected %zu bytes, got %zu", len, total_bytes_read);
-                return -1; 
-            } else {
-                break; 
-            }
+            LOG_ERROR("Socket closed by remote host");
+            return ERROR_FAIL;
         }
 
         total_bytes_read += bytes_read;
@@ -78,26 +132,6 @@ static int socket_dmi_connect(dtm_driver_t* driver){
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(priv->port);
-
-
-    // Disable Nagle algorithm
-    int flag = 1;
-    if (setsockopt(priv->sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0) {
-        perror("setsockopt(TCP_NODELAY) failed");
-        return ERROR_FAIL;
-    }
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
-    if (setsockopt(priv->sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
-        perror("setsockopt(SO_RCVTIMEO) failed");
-        return ERROR_FAIL;
-    }
-    if (setsockopt(priv->sockfd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
-        perror("setsockopt(SO_SNDTIMEO) failed");
-        return ERROR_FAIL;
-    }
-
 
     if (inet_pton(AF_INET, priv->host, &server_addr.sin_addr) <= 0) {
         perror("Invalid address/ Address not supported");
@@ -163,6 +197,7 @@ int socket_dmi_read_dmi(dtm_driver_t *driver, uint32_t *data, uint32_t address) 
             return -1;
         }
     }
+    const size_t data_length = 4;
     uint8_t buffer[9];
     // Protocol: [READ_COMMAND][address (4 bytes)][data_length (1 byte, fixed as 4 for now)][Reserved (3 bytes)]
     buffer[0] = READ_COMMAND; 
@@ -170,11 +205,16 @@ int socket_dmi_read_dmi(dtm_driver_t *driver, uint32_t *data, uint32_t address) 
     buffer[2] = (address >> 16) & 0xFF;
     buffer[3] = (address >> 8) & 0xFF;
     buffer[4] = address & 0xFF;
-    buffer[5] = 4; // data length in bytes (fixed at 4)
+    buffer[5] = data_length; // data length in bytes (fixed at 4)
     // Reserved bytes
     buffer[6] = 0x00;
     buffer[7] = 0x00;
     buffer[8] = 0x00;
+
+    if (clear_socket_buffer(priv->sockfd) != 0) {
+        LOG_ERROR("Failed to clear socket buffer");
+        return ERROR_FAIL;
+    }
 
     ssize_t sent = send(priv->sockfd, buffer, sizeof(buffer), 0);
     if (sent != sizeof(buffer)) {
@@ -182,10 +222,10 @@ int socket_dmi_read_dmi(dtm_driver_t *driver, uint32_t *data, uint32_t address) 
         return ERROR_FAIL;
     }
 
-    uint8_t response_buffer[1];
-    ssize_t received_bytes = recv_all(priv->sockfd, response_buffer, 1);
-    printf("response_buffer: 0x%02X\n", response_buffer[0]);
-    if (received_bytes != 1) {
+    const size_t response_length = 1;
+    uint8_t response_buffer[response_length];
+    size_t received_bytes = recv_all(priv->sockfd, response_buffer, response_length);
+    if (received_bytes != response_length) {
         LOG_ERROR("Failed to receive response byte: received %zd bytes, expected 1", received_bytes);
         return ERROR_FAIL;
     }
@@ -195,28 +235,18 @@ int socket_dmi_read_dmi(dtm_driver_t *driver, uint32_t *data, uint32_t address) 
         return -1;
     }
 
-    uint8_t data_buffer[4];
-    received_bytes = recv_all(priv->sockfd, data_buffer, 4);
+    uint8_t data_buffer[data_length];
+    received_bytes = recv_all(priv->sockfd, data_buffer, data_length);
 
-    printf("data_buffer: ");
-    for (int i = 0; i < 4; i++) {
-        printf("0x%02X ", data_buffer[i]);
-    }
-    printf("\n");
-
-    if (received_bytes != 4) {
-        LOG_ERROR("Failed to receive data: received %zd bytes, expected 4", received_bytes);
+    if (received_bytes != data_length) {
+        LOG_ERROR("Failed to receive data: received %zd bytes, expected %zd", received_bytes, data_length);
         return ERROR_FAIL;
     }
-
-    // *data = convert_from_be(data_buffer);
 
     *data = (data_buffer[0] << 24) |
             (data_buffer[1] << 16) |
             (data_buffer[2] << 8) |
             data_buffer[3];
-
-    printf("*data: 0x%08X\n", *data);
 
     return ERROR_OK;
 }

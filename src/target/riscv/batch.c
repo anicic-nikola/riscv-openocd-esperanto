@@ -128,6 +128,7 @@ static void add_idle_before_batch(const struct riscv_batch *batch, size_t start_
 	LOG_TARGET_DEBUG(batch->target, "Adding %u idle cycles before the batch.",
 			idle_change);
 	assert(idle_change <= INT_MAX);
+	// TODO: get rid of the JTAG dependency here
 	jtag_add_runtest(idle_change, TAP_IDLE);
 }
 

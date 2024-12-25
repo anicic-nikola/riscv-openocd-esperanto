@@ -227,15 +227,27 @@ static dm013_info_t *get_dm(struct target *target)
 	if (info->dm)
 		return info->dm;
 
-	unsigned int abs_chain_position = target->tap->abs_chain_position;
-
 	dm013_info_t *entry;
 	dm013_info_t *dm = NULL;
-	list_for_each_entry(entry, &dm_list, list) {
-		if (entry->abs_chain_position == abs_chain_position
-				&& entry->base == target->dbgbase) {
-			dm = entry;
-			break;
+	unsigned int abs_chain_position = 0;
+
+	// For now we could let it be initialized to 0, as the comment suggests (default value), but if we 
+	// bypass it in the future or ignore its state, we might send commands that are not appropriate for the
+	// current state of the debug session, leading to errors or inconsistencies.
+	// The DM provides error codes and status information that help us understand whether a DMI command 
+	// was successful or if there was an issue (e.g., invalid address, unsupported command).
+    // Ignoring the DM means we lose access to this important feedback, making it harder to diagnose and fix problems.
+	// If we don't initialize the DM correctly, our DMI commands may not work as expected, 
+	// or they may cause the debug session to become unstable.
+
+	if (strcmp(target->type->name, "riscv") != 0){
+		abs_chain_position = target->tap->abs_chain_position;
+		list_for_each_entry(entry, &dm_list, list) {
+			if (entry->abs_chain_position == abs_chain_position
+					&& entry->base == target->dbgbase) {
+				dm = entry;
+				break;
+			}
 		}
 	}
 
@@ -245,7 +257,6 @@ static dm013_info_t *get_dm(struct target *target)
 		if (!dm)
 			return NULL;
 		dm->abs_chain_position = abs_chain_position;
-
 		/* Safety check for dbgbase */
 		assert(target->dbgbase_set || target->dbgbase == 0);
 
@@ -359,10 +370,13 @@ static void select_dmi(struct target *target)
 		select_dmi_via_bscan(target);
 		return;
 	}
-	if (!target->tap->enabled)
-		LOG_TARGET_ERROR(target, "BUG: Target's TAP '%s' is disabled!",
-				jtag_tap_name(target->tap));
-
+	if (strcmp(target->type->name, "riscv") != 0) {
+		if (!target->tap->enabled){
+			LOG_TARGET_ERROR(target, "BUG: Target's TAP '%s' is disabled!",
+					jtag_tap_name(target->tap));
+		}
+	}
+		
 	bool need_ir_scan = false;
 	/* FIXME: make "tap" a const pointer. */
 	for (struct jtag_tap *tap = jtag_tap_next_enabled(NULL);
