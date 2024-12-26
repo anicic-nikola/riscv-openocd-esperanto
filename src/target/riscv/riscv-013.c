@@ -469,7 +469,12 @@ static int dmi_read(struct target *target, uint32_t *value, uint32_t address)
 
 static int dm_read(struct target *target, uint32_t *value, uint32_t address)
 {
-	return dmi_read(target, value, riscv013_get_dmi_address(target, address));
+	if (strcmp(target->type->name, "riscv") != 0){
+		return dmi_read(target, value, riscv013_get_dmi_address(target, address));
+	} else {
+		return socket_dmi_read(target, value, address);
+	}
+	
 }
 
 static int dm_read_exec(struct target *target, uint32_t *value, uint32_t address)
@@ -1808,11 +1813,11 @@ static int reset_dm(struct target *target)
 		const time_t start = time(NULL);
 		LOG_TARGET_DEBUG(target, "Waiting for the DM to acknowledge reset.");
 		do {
-			if (strcmp(target->type->name, "riscv") != 0){
-				result = dm_read(target, &dmcontrol, DM_DMCONTROL);
-			} else {
-				result = socket_dmi_read(target, &dmcontrol, DM_DMCONTROL);
-				// result = dm_read(target, &dmcontrol, DM_DMCONTROL);
+			uint32_t result_field = get_field(dmcontrol, DM_DMCONTROL_DMACTIVE);
+			LOG_TARGET_DEBUG(target, "******* result_field: %d", result_field);
+			result = dm_read(target, &dmcontrol, DM_DMCONTROL);
+			if (strcmp(target->type->name, "riscv") == 0){
+				dmcontrol = dmcontrol & ~1; // clear the last bit to indicate that the reset is complete
 			}
 			if (result != ERROR_OK)
 				return result;
