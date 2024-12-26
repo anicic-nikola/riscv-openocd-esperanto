@@ -5,6 +5,7 @@
  * latest draft.
  */
 
+#include "transport/riscv_socket_dmi.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -1784,7 +1785,14 @@ static int reset_dm(struct target *target)
 	 * prohibited.
 	 */
 	uint32_t dmcontrol;
-	int result = dm_read(target, &dmcontrol, DM_DMCONTROL);
+	
+	int result = 0;
+	if (strcmp(target->type->name, "riscv") != 0){
+		result = dm_read(target, &dmcontrol, DM_DMCONTROL);
+	} else {
+		result = socket_dmi_read(target, &dmcontrol, DM_DMCONTROL);
+		// result = dm_read(target, &dmcontrol, DM_DMCONTROL);
+	}
 	if (result != ERROR_OK)
 		return result;
 
@@ -1800,7 +1808,12 @@ static int reset_dm(struct target *target)
 		const time_t start = time(NULL);
 		LOG_TARGET_DEBUG(target, "Waiting for the DM to acknowledge reset.");
 		do {
-			result = dm_read(target, &dmcontrol, DM_DMCONTROL);
+			if (strcmp(target->type->name, "riscv") != 0){
+				result = dm_read(target, &dmcontrol, DM_DMCONTROL);
+			} else {
+				result = socket_dmi_read(target, &dmcontrol, DM_DMCONTROL);
+				// result = dm_read(target, &dmcontrol, DM_DMCONTROL);
+			}
 			if (result != ERROR_OK)
 				return result;
 
