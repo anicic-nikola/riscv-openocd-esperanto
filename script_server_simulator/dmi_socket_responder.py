@@ -28,7 +28,7 @@ DMI_PROGBUF0 = 0x20  # Program Buffer 0 (for program buffer access)
 
 dmi_mem = {
     DMI_DMCONTROL: 0x00000001,  # Initially, let's say the hart is running
-    DMI_DMSTATUS: 0x00000201,  # Indicate all harts are running, version 0.13
+    DMI_DMSTATUS: 0x00000202,  # Indicate all harts are running, version 0.13 (version=2)
     DMI_HARTINFO: 0x00000000,  # No hartsel, 1 data register
     DMI_ABSTRACTCS: 0x00000000,  # No errors, no busy, 1 command register
     DMI_COMMAND: 0x00000000,  # No command active
@@ -49,8 +49,46 @@ def handle_dmi_read(address, conn):
             data = 0x41  # Example: Set dmactive (bit 31) and dmireset (bit 0)
             print(f"  DTMCONTROL read! Returning: 0x{data:08X}")
         if address == DMI_DMSTATUS:
-            data = 0x2F3  # Example: Set dmactive (bit 31) and dmireset (bit 0)
-            print(f"  DMI_DMSTATUS read! Returning: 0x{data:08X}")
+            print(f"  DMI_DMSTATUS read! Current value: 0x{data:08X}")
+            version = 0x2  # Version 0.13
+            abits = 4
+            allresumeack = 1
+            anyresumeack = 1
+            allrunning = 0
+            anyrunning = 0
+            allhalted = 0
+            anyhalted = 0
+            allhavereset = 0
+            anyhavereset = 0
+            allnonexistent = 0
+            anynonexistent = 0
+            allunavail = 0
+            anyunavail = 0
+            authenticated = 1
+            authbusy = 0
+            idle = 7
+            hasresethaltreq = 0
+
+            data = (version & 0x3) | \
+                   ((abits & 0x3F) << 4) | \
+                   ((allresumeack & 0x1) << 9) | \
+                   ((anyresumeack & 0x1) << 8) | \
+                   ((allrunning & 0x1) << 2) | \
+                   ((anyrunning & 0x1) << 1) | \
+                   ((allhalted & 0x1) << 3) | \
+                   ((anyhalted & 0x1) << 2) | \
+                   ((allhavereset & 0x1) << 11) | \
+                   ((anyhavereset & 0x1) << 10) | \
+                   ((allnonexistent & 0x1) << 13) | \
+                   ((anynonexistent & 0x1) << 12) | \
+                   ((allunavail & 0x1) << 15) | \
+                   ((anyunavail & 0x1) << 14) | \
+                   ((authenticated & 0x1) << 7) | \
+                   ((authbusy & 0x1) << 17) | \
+                   ((idle & 0x1F) << 18) | \
+                   ((hasresethaltreq & 0x1) << 31)
+
+            print(f"  DMI_DMSTATUS read! Constructed value: 0x{data:08X}")
         # Pack the 32-bit data only once:
         response_data = struct.pack(">I", data) 
         # Construct the response by concatenating status and data:
@@ -67,20 +105,41 @@ def handle_dmi_write(address, data):
     print(f"DMI Write: Addr=0x{address:02X}, Data=0x{data:08X}")
     # ipdb.set_trace()
     if address == DMI_DMCONTROL:
+        print(f"  DMI_DMCONTROL write! Data: 0x{data:08X}")
         # Implement basic DMCONTROL handling (e.g., halt, resume)
         dmi_mem[DMI_DMCONTROL] = data # Write data here
+        print(f"  DMI_DMSTATUS before modification: 0x{dmi_mem[DMI_DMSTATUS]:08X}")
+
+        DMSTATUS_ALL_RUNNING_MASK = 0x3
+        DMSTATUS_ALL_RESUMEACK_MASK = 0x3
+        DMSTATUS_ALL_HAVERESET_MASK = 0x300
+        DMSTATUS_ALL_RESUME_MASK = 0x300
+        DMSTATUS_ALL_RESET_MASK = 0x400
+        DMSTATUS_VERSION_MASK = 0x3
+        DMSTATUS_VERSION_0_13 = 0x2
+
         if (data >> 31) & 1:
             print("Debug request set")
-            dmi_mem[DMI_DMSTATUS] = (dmi_mem[DMI_DMSTATUS] & ~0x3) | 0x2  # Set all running to 0 and all resumeack to 1
+            # dmi_mem[DMI_DMSTATUS] = (dmi_mem[DMI_DMSTATUS] & ~0x3) | 0x2  # Set all running to 0 and all resumeack to 1
+            dmi_mem[DMI_DMSTATUS] &= ~(DMSTATUS_ALL_RUNNING_MASK)
+            dmi_mem[DMI_DMSTATUS] |= (DMSTATUS_ALL_RESUMEACK_MASK & 0x2)
         if (data >> 30) & 1:
             print("Halt request set")
-            dmi_mem[DMI_DMSTATUS] = (dmi_mem[DMI_DMSTATUS] & ~0x300) | 0x200  # Set all resume to 0 and all have been halted to 1
+            # dmi_mem[DMI_DMSTATUS] = (dmi_mem[DMI_DMSTATUS] & ~0x300) | 0x200  # Set all resume to 0 and all have been halted to 1
+            dmi_mem[DMI_DMSTATUS] &= ~(DMSTATUS_ALL_RESUME_MASK)
+            dmi_mem[DMI_DMSTATUS] |= (DMSTATUS_ALL_HAVERESET_MASK & 0x200)
         if (data >> 0) & 1:
             print("Hart reset request set")
-            dmi_mem[DMI_DMSTATUS] = (dmi_mem[DMI_DMSTATUS] & ~0x400) | 0x400  # Set all reset to 1
+            # dmi_mem[DMI_DMSTATUS] = (dmi_mem[DMI_DMSTATUS] & ~0x400) | 0x400  # Set all reset to 1
+            dmi_mem[DMI_DMSTATUS] |= (DMSTATUS_ALL_RESET_MASK & 0x400)
         if (data >> 1) & 1:
             print("Acknowledge hart reset request set")
-            dmi_mem[DMI_DMSTATUS] = (dmi_mem[DMI_DMSTATUS] & ~0x400)  # Set all reset to 0
+            # dmi_mem[DMI_DMSTATUS] = (dmi_mem[DMI_DMSTATUS] & ~0x400)  # Set all reset to 0
+            dmi_mem[DMI_DMSTATUS] &= ~(DMSTATUS_ALL_RESET_MASK)
+
+        # We need to always ensure the version field is correct:
+        dmi_mem[DMI_DMSTATUS] &= ~DMSTATUS_VERSION_MASK  # Clear version bits
+        dmi_mem[DMI_DMSTATUS] |= DMSTATUS_VERSION_0_13  # Set version to 0.13
     elif address == DMI_COMMAND:
         # Implement abstract command handling
         dmi_mem[DMI_COMMAND] = data # Write data here
