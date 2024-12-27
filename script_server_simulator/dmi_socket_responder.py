@@ -46,8 +46,11 @@ def handle_dmi_read(address, conn):
         print(f"DMI Read: Addr=0x{address:02X}, Data=0x{data:08X}")
         # ipdb.set_trace()
         if address == DMI_DMCONTROL:
-            print(f"  DTMCONTROL read! Returning: 0x{data:08X}")
             data = 0x41  # Example: Set dmactive (bit 31) and dmireset (bit 0)
+            print(f"  DTMCONTROL read! Returning: 0x{data:08X}")
+        if address == DMI_DMSTATUS:
+            data = 0x2F3  # Example: Set dmactive (bit 31) and dmireset (bit 0)
+            print(f"  DMI_DMSTATUS read! Returning: 0x{data:08X}")
         # Pack the 32-bit data only once:
         response_data = struct.pack(">I", data) 
         # Construct the response by concatenating status and data:
