@@ -233,7 +233,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 except ConnectionResetError:
                     print("Client disconnected")
                     break
-                buffer = b''
+            buffer = b''
 
 # This works somehow
 # =============================================================================================
