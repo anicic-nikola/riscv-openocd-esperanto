@@ -2,6 +2,7 @@ import socket
 import struct
 import time
 import ipdb
+import binascii
 
 HOST = 'localhost'
 PORT = 5555
@@ -26,17 +27,37 @@ DMI_DATA0 = 0x04  # Data register 0 (for abstract commands)
 DMI_DATA1 = 0x05  # Data register 1 (for abstract commands)
 DMI_PROGBUF0 = 0x20  # Program Buffer 0 (for program buffer access)
 
+DMI_DTMCS_OFFSET_DEBUG = 0x0000
+
 dmi_mem = {
-    DMI_DMCONTROL: 0x00000001,  # Initially, let's say the hart is running
-    DMI_DMSTATUS: 0x00000202,  # Indicate all harts are running, version 0.13 (version=2)
-    DMI_HARTINFO: 0x00000000,  # No hartsel, 1 data register
-    DMI_ABSTRACTCS: 0x00000000,  # No errors, no busy, 1 command register
-    DMI_COMMAND: 0x00000000,  # No command active
-    DMI_ABSTRACTAUTO: 0x00000000,  # No auto-increment
-    DMI_DATA0: 0x00000000,
-    DMI_DATA1: 0x00000000,
-    DMI_PROGBUF0: 0x00000000,
+    DMI_DTMCS_OFFSET_DEBUG: 0x0000, # 0x00000000 is the default value for all registers, 0x0000 is the address offset for the DTMCS register
+    DMI_DMCONTROL: 0x0001,  # Initially, let's say the hart is running
+    DMI_DMSTATUS: 0x0202,  # Indicate all harts are running, version 0.13 (version=2)
+    DMI_HARTINFO: 0x0000,  # No hartsel, 1 data register
+    DMI_ABSTRACTCS: 0x0000,  # No errors, no busy, 1 command register
+    DMI_COMMAND: 0x0000,  # No command active
+    DMI_ABSTRACTAUTO: 0x0000,  # No auto-increment
+    DMI_DATA0: 0x0000,
+    DMI_DATA1: 0x0000,
+    DMI_PROGBUF0: 0x0000,
 }
+
+# This is a hack to clear the kernel buffer
+# It is necessary because the kernel buffer is not cleared by the socket
+# and it can cause problems with the DMI protocol  in some cases, so better be safe
+def clear_kernel_buffer(sock):
+    sock.setblocking(False)
+    
+    try:
+        while True:
+            data = sock.recv(4096)
+            if not data:
+                break
+    except BlockingIOError:
+        pass
+    finally:
+        sock.setblocking(True)
+
 
 def handle_dmi_read(address, conn):
     """Handles DMI read requests."""
@@ -45,10 +66,14 @@ def handle_dmi_read(address, conn):
         data = dmi_mem[address]
         print(f"DMI Read: Addr=0x{address:02X}, Data=0x{data:08X}")
         # ipdb.set_trace()
-        if address == DMI_DMCONTROL:
+        if address == DMI_DTMCS_OFFSET_DEBUG:
+            # clear_kernel_buffer(conn)
+            data = 0x1331
+            print(f"  DTMCS offset debug: Returning: 0x{data:08X}")
+        elif address == DMI_DMCONTROL:
             data = 0x41  # Example: Set dmactive (bit 31) and dmireset (bit 0)
             print(f"  DTMCONTROL read! Returning: 0x{data:08X}")
-        if address == DMI_DMSTATUS:
+        elif address == DMI_DMSTATUS:
             print(f"  DMI_DMSTATUS read! Current value: 0x{data:08X}")
             version = 0x2  # Version 0.13
             abits = 4
@@ -95,6 +120,7 @@ def handle_dmi_read(address, conn):
         response = struct.pack(">B", RESPONSE_OK) + response_data
         time.sleep(0.1)
         print(f"Sending response: {response!r}")  # !r for printable representation
+        print(f"Response in hex: {binascii.hexlify(response)}")
         conn.sendall(response)
         return data
     else:

@@ -504,7 +504,12 @@ static int dmi_write(struct target *target, uint32_t address, uint32_t value)
 
 static int dm_write(struct target *target, uint32_t address, uint32_t value)
 {
-	return dmi_write(target, riscv013_get_dmi_address(target, address), value);
+	if (strcmp(target->type->name, "riscv") != 0){
+		return dmi_write(target, riscv013_get_dmi_address(target, address), value);
+	} else {
+		return socket_dmi_write(target, riscv013_get_dmi_address(target, address), value);
+	}
+	
 }
 
 static bool check_dbgbase_exists(struct target *target)

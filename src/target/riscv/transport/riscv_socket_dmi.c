@@ -184,6 +184,7 @@ int socket_dmi_deinit(dtm_driver_t *driver) {
 }
 
 int socket_dmi_read_dmi(dtm_driver_t *driver, uint32_t *data, uint32_t address) {
+    LOG_DEBUG("socket_dmi_read_dmi from address: address: %x", address);
     if (!driver->priv) {
         return ERROR_FAIL;
     }
@@ -252,6 +253,7 @@ int socket_dmi_read_dmi(dtm_driver_t *driver, uint32_t *data, uint32_t address) 
 }
 
 int socket_dmi_write_dmi(dtm_driver_t *driver, uint32_t address, uint32_t data) {
+    LOG_DEBUG("socket_dmi_write_dmi: address: %x, data: %x", address, data);
     if (!driver->priv) {
         return ERROR_FAIL;
     }
