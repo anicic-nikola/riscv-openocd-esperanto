@@ -1965,7 +1965,8 @@ static int examine(struct target *target)
 			return ERROR_FAIL;
 		}
 	} else {
-		if (dtmcontrol_write(target, 0, &dtmcontrol) != ERROR_OK || dtmcontrol == 0) {
+		dtm_driver_t *driver = get_active_dtm_driver();
+		if (socket_dmi_read_dmi(driver, &dtmcontrol, 0) != ERROR_OK || dtmcontrol == 0) {
 			LOG_TARGET_ERROR(target, "Could not read dtmcontrol. Check socket connection/board power.");
 			return ERROR_FAIL;
 		}
