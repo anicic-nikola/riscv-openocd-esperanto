@@ -29,7 +29,13 @@ DMI_PROGBUF0 = 0x20  # Program Buffer 0 (for program buffer access)
 
 DMI_DTMCS_OFFSET_DEBUG = 0x0000
 
+# This needs to be changed, a temp hack to reply to the OpenOCD, probably some issue with 
+# the kernel buffer, but it works somehow. Some clearing of the buffer is needed, or 
+# better managing of the messages, either by size, or by some delimiter of the message.
+DMI_TEST = 0x10040000
+
 dmi_mem = {
+    DMI_TEST: 0x0041,
     DMI_DTMCS_OFFSET_DEBUG: 0x0000, # 0x00000000 is the default value for all registers, 0x0000 is the address offset for the DTMCS register
     DMI_DMCONTROL: 0x0001,  # Initially, let's say the hart is running
     DMI_DMSTATUS: 0x0202,  # Indicate all harts are running, version 0.13 (version=2)
