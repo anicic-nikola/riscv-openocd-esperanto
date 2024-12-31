@@ -213,7 +213,7 @@ int socket_dmi_read_dmi(dtm_driver_t *driver, uint32_t *data, uint32_t address) 
     buffer[8] = 0x00;
 
     if (clear_socket_buffer(priv->sockfd) != 0) {
-        LOG_ERROR("Failed to clear socket buffer");
+        LOG_ERROR("Failed to clear socket buffer in socket_dmi_read_dmi");
         return ERROR_FAIL;
     }
 
@@ -279,6 +279,11 @@ int socket_dmi_write_dmi(dtm_driver_t *driver, uint32_t address, uint32_t data) 
     buffer[7] = (data >> 16) & 0xFF;
     buffer[8] = (data >> 8) & 0xFF;
     buffer[9] = data & 0xFF;
+
+    if (clear_socket_buffer(priv->sockfd) != 0) {
+        LOG_ERROR("Failed to clear socket buffer in socket_dmi_write_dmi");
+        return ERROR_FAIL;
+    }
 
     ssize_t sent = send(priv->sockfd, buffer, sizeof(buffer), 0);
     if (sent != sizeof(buffer)) {

@@ -220,52 +220,113 @@ def execute_abstract_command(command):
         print(f"  Command type {command_type} not implemented")
         return 7  # Command not implemented
 
-# --- Main Server Loop ---
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.bind((HOST, PORT))
-    s.listen()
-    print(f"Server listening on {HOST}:{PORT}")
-    while True:
-        conn, addr = s.accept()
-        with conn:
-            print(f"Connected by {addr}")
-            buffer = b''
-            while True:
-                try:
-                    # ipdb.set_trace()
-                    data = conn.recv(1024)
-                    if not data:
-                        break
-                    print(f"Received raw data: {data.hex()}")
-                    buffer += data
+def main1():
+    def handle_connection(conn):
+        buffer = b""
+        while True:
+            # Read the length of the message (4 bytes for a 32-bit length)
+            while len(buffer) < 4:
+                data = conn.recv(1024)
+                if not data:
+                    return
+                buffer += data
 
-                    while len(buffer) >= 6:
-                        command, address, data_length = struct.unpack(">BIB", buffer[:6])
-                        print(f"Unpacked received address: 0x{address:08X}")
+            message_length = struct.unpack(">I", buffer[:4])[0]
+            buffer = buffer[4:]
 
-                        if command == READ_COMMAND:
-                            # ipdb.set_trace()
-                            data = handle_dmi_read(address, conn)
-                            buffer = buffer[6:]
+            # Read the rest of the message
+            while len(buffer) < message_length:
+                data = conn.recv(1024)
+                if not data:
+                    return
+                buffer += data
 
-                        elif command == WRITE_COMMAND:
-                            if len(buffer) >= 10:
+            # Process the complete message
+            command, address, data_length = struct.unpack(">BIB", buffer[:6])
+
+            if command == WRITE_COMMAND:
+                if message_length == 10:
+                    data = struct.unpack(">I", buffer[6:10])[0]
+                    print(f"Write: Address={address:#010x}, Data={data:#010x}, Length={data_length}")
+                    handle_dmi_write(address, data)
+                    # Send a response (if needed)
+                    response = struct.pack(">B", RESPONSE_OK) # Example: 0 for success
+                    conn.sendall(struct.pack(">I", len(response)) + response)
+                else:
+                    print("Error: Incorrect message length for write operation")
+
+            elif command == READ_COMMAND:
+                if message_length == 6:
+                    print(f"Read: Address={address:#010x}, Length={data_length}")
+                    handle_dmi_read(address, conn)
+                else:
+                    print("Error: Incorrect message length for read operation")
+
+            else:
+                print(f"Unknown command: {command}")
+
+            buffer = buffer[message_length:]
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((HOST, PORT))
+        s.listen()
+        print(f"Server listening on {HOST}:{PORT}")
+        while True:
+            conn, addr = s.accept()
+            with conn:
+                print(f"Connected by {addr}")
+                handle_connection(conn)
+
+
+def main2():
+    # --- Main Server Loop ---
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((HOST, PORT))
+        s.listen()
+        print(f"Server listening on {HOST}:{PORT}")
+        while True:
+            conn, addr = s.accept()
+            with conn:
+                print(f"Connected by {addr}")
+                buffer = b''
+                while True:
+                    try:
+                        # ipdb.set_trace()
+                        data = conn.recv(1024)
+                        if not data:
+                            break
+                        print(f"Received raw data: {data.hex()}")
+                        buffer += data
+
+                        while len(buffer) >= 6:
+                            command, address, data_length = struct.unpack(">BIB", buffer[:6])
+                            print(f"Unpacked received address: 0x{address:08X}")
+                            print(f"Unpacked received command: 0x{command:08X}")
+                            if command == READ_COMMAND:
                                 # ipdb.set_trace()
-                                data = struct.unpack(">I", buffer[6:10])[0]
-                                handle_dmi_write(address, data)
-                                conn.sendall(struct.pack(">BI", RESPONSE_OK, 0))
-                                buffer = buffer[10:]
-                            else:
-                                break  # Not enough data yet
+                                data = handle_dmi_read(address, conn)
+                                buffer = buffer[6:]
 
-                        else:
-                            print(f"Invalid command: {command}")
-                            conn.sendall(struct.pack(">BI", RESPONSE_ERROR, 0))
-                            buffer = buffer[6:]
-                except ConnectionResetError:
-                    print("Client disconnected")
-                    break
-            buffer = b''
+                            elif command == WRITE_COMMAND:
+                                if len(buffer) >= 10:
+                                    # ipdb.set_trace()
+                                    data = struct.unpack(">I", buffer[6:10])[0]
+                                    handle_dmi_write(address, data)
+                                    conn.sendall(struct.pack(">BI", RESPONSE_OK, 0))
+                                    buffer = buffer[10:]
+                                else:
+                                    break  # Not enough data yet
+
+                            else:
+                                print(f"Invalid command: {command}")
+                                conn.sendall(struct.pack(">BI", RESPONSE_ERROR, 0))
+                                buffer = buffer[6:]
+                    except ConnectionResetError:
+                        print("Client disconnected")
+                        break
+                buffer = b''
+
+main2()
 
 # This works somehow
 # =============================================================================================
