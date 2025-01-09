@@ -300,27 +300,54 @@ def main2():
 
                         while len(buffer) >= 6:
                             command, address, data_length = struct.unpack(">BIB", buffer[:6])
-                            print(f"Unpacked received address: 0x{address:08X}")
-                            print(f"Unpacked received command: 0x{command:08X}")
+                            print(f"Unpacked received command: 0x{command:01X}")
+                            print(f"Unpacked received address: 0x{address:04X}")
+                            print(f"Unpacked received data_length: 0x{data_length:01X}")
                             if command == READ_COMMAND:
                                 # ipdb.set_trace()
                                 data = handle_dmi_read(address, conn)
+                                print(f"Unpacked READ data is {data}")
+                                print(f"READ COMMAND received, the whole buffer is: {buffer}")
                                 buffer = buffer[6:]
+                                print(f"READ COMMAND received, stripped buffer is: {buffer}")
 
                             elif command == WRITE_COMMAND:
                                 if len(buffer) >= 10:
                                     # ipdb.set_trace()
                                     data = struct.unpack(">I", buffer[6:10])[0]
+                                    print(f"Unpacked WRITE data is {data}")
                                     handle_dmi_write(address, data)
                                     conn.sendall(struct.pack(">BI", RESPONSE_OK, 0))
+                                    print(f"WRITE COMMAND received, the whole buffer is: {buffer}")
                                     buffer = buffer[10:]
+                                    print(f"WRITE COMMAND received, stripped buffer is: {buffer}")
                                 else:
-                                    break  # Not enough data yet
+                                    break
 
                             else:
+                                print (f"Received buffer with unknown command, the whole buffer is: {buffer}")
                                 print(f"Invalid command: {command}")
                                 conn.sendall(struct.pack(">BI", RESPONSE_ERROR, 0))
                                 buffer = buffer[6:]
+                        if not buffer:
+                            # If buffer is empty, receive at least 6 bytes
+                            print("**** Buffer is empty, receiving 6 bytes now.")
+                            received_data = conn.recv(6)
+                        else:
+                            # If buffer has some data, check for and remove stray '@'
+                            if buffer == b'@':
+                                print("Removing stray '@' from buffer")
+                                buffer = b''  # Clear the buffer
+                            # Receive at least 1 byte to make progress
+                            received_data = conn.recv(1)
+
+                        if not received_data:
+                            break  # Connection closed
+
+                        # buffer = b''
+                        # buffer += received_data
+                        buffer = received_data
+
                     except ConnectionResetError:
                         print("Client disconnected")
                         break
