@@ -1912,17 +1912,21 @@ static int examine_dm(struct target *target)
 			 * riscv013_get_hart_state().
 			 * It would be best to reuse the code.
 			 */
+			LOG_TARGET_DEBUG(target, "####### About to enter dm013_select_hart, for the %d id of the loop", i); // TODO: delete this
 			result = dm013_select_hart(target, i);
-			if (result != ERROR_OK)
+			if (result != ERROR_OK) {
 				return result;
+			}
 
 			uint32_t s;
 			result = dmstatus_read(target, &s, /*authenticated*/ true);
-			if (result != ERROR_OK)
+			if (result != ERROR_OK){
 				return result;
+			}
 
-			if (get_field(s, DM_DMSTATUS_ANYNONEXISTENT))
+			if (get_field(s, DM_DMSTATUS_ANYNONEXISTENT)){
 				break;
+			}
 
 			dm->hart_count = i + 1;
 
@@ -1932,12 +1936,14 @@ static int examine_dm(struct target *target)
 				 * change `hartsel`.
 				 */
 				result = wait_for_idle_if_needed(target);
-				if (result != ERROR_OK)
+				if (result != ERROR_OK){
 					return result;
+				}
 				dmcontrol = set_dmcontrol_hartsel(dmcontrol, i);
 				result = dm_write(target, DM_DMCONTROL, dmcontrol);
-				if (result != ERROR_OK)
+				if (result != ERROR_OK){
 					return result;
+				}
 			}
 		}
 		LOG_TARGET_DEBUG(target, "Detected %d harts.", dm->hart_count);

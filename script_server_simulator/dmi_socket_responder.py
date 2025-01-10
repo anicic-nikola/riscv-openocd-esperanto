@@ -81,43 +81,46 @@ def handle_dmi_read(address, conn):
             print(f"  DTMCONTROL read! Returning: 0x{data:08X}")
         elif address == DMI_DMSTATUS:
             print(f"  DMI_DMSTATUS read! Current value: 0x{data:08X}")
-            version = 0x2  # Version 0.13
-            abits = 4
-            allresumeack = 1
-            anyresumeack = 1
-            allrunning = 0
-            anyrunning = 0
-            allhalted = 0
-            anyhalted = 0
-            allhavereset = 0
-            anyhavereset = 0
-            allnonexistent = 0
-            anynonexistent = 0
-            allunavail = 0
-            anyunavail = 0
-            authenticated = 1
-            authbusy = 0
-            idle = 7
+            # Define field values
+            version = 0x2             # version 0.13 (4 bits)
+            confstrptrvalid = 0x0
             hasresethaltreq = 0
+            authbusy = 0
+            authenticated = 1
+            anyhalted = 0
+            allhalted = 0
+            anyrunning = 0
+            allrunning = 0
+            anyunavail = 0
+            allunavail = 0
+            anynonexistent = 0
+            allnonexistent = 0
+            anyresumeack = 1
+            allresumeack = 1
+            anyhavereset = 0
+            allhavereset = 0
+            impebreak = 0x0
 
-            data = (version & 0x3) | \
-                   ((abits & 0x3F) << 4) | \
-                   ((allresumeack & 0x1) << 9) | \
-                   ((anyresumeack & 0x1) << 8) | \
-                   ((allrunning & 0x1) << 2) | \
-                   ((anyrunning & 0x1) << 1) | \
-                   ((allhalted & 0x1) << 3) | \
-                   ((anyhalted & 0x1) << 2) | \
-                   ((allhavereset & 0x1) << 11) | \
-                   ((anyhavereset & 0x1) << 10) | \
-                   ((allnonexistent & 0x1) << 13) | \
-                   ((anynonexistent & 0x1) << 12) | \
-                   ((allunavail & 0x1) << 15) | \
-                   ((anyunavail & 0x1) << 14) | \
-                   ((authenticated & 0x1) << 7) | \
-                   ((authbusy & 0x1) << 17) | \
-                   ((idle & 0x1F) << 18) | \
-                   ((hasresethaltreq & 0x1) << 31)
+            # construct the 32-bit data value
+            data = (version & 0x0f) | \
+                ((confstrptrvalid & 0x01) << 4) | \
+                ((hasresethaltreq & 0x01) << 5) | \
+                ((authbusy & 0x01) << 6) | \
+                ((authenticated & 0x01) << 7) | \
+                ((anyhalted & 0x01) << 8) | \
+                ((allhalted & 0x01) << 9) | \
+                ((anyrunning & 0x01) << 10) | \
+                ((allrunning & 0x01) << 11) | \
+                ((anyunavail & 0x01) << 12) | \
+                ((allunavail & 0x01) << 13) | \
+                ((anynonexistent & 0x01) << 14) | \
+                ((allnonexistent & 0x01) << 15) | \
+                ((anyresumeack & 0x01) << 16) | \
+                ((allresumeack & 0x01) << 17) | \
+                ((anyhavereset & 0x01) << 18) | \
+                ((allhavereset & 0x01) << 19) | \
+                ((impebreak & 0x03) << 20) | \
+                (0 << 31)  # bit 31 is fixed to 0
 
             print(f"  DMI_DMSTATUS read! Constructed value: 0x{data:08X}")
         # Pack the 32-bit data only once:
