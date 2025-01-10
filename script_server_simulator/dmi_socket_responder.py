@@ -26,6 +26,7 @@ DMI_ABSTRACTAUTO = 0x18  # Abstract Autoincrement
 DMI_DATA0 = 0x04  # Data register 0 (for abstract commands)
 DMI_DATA1 = 0x05  # Data register 1 (for abstract commands)
 DMI_PROGBUF0 = 0x20  # Program Buffer 0 (for program buffer access)
+DMI_SBCS = 0x38 # System Bus Access Control and Status
 
 DMI_DTMCS_OFFSET_DEBUG = 0x0000
 
@@ -46,6 +47,7 @@ dmi_mem = {
     DMI_DATA0: 0x0000,
     DMI_DATA1: 0x0000,
     DMI_PROGBUF0: 0x0000,
+    DMI_SBCS: 0x0000,
 }
 
 # This is a hack to clear the kernel buffer
@@ -84,17 +86,17 @@ def handle_dmi_read(address, conn):
             # Define field values
             version = 0x2             # version 0.13 (4 bits)
             confstrptrvalid = 0x0
-            hasresethaltreq = 0
+            hasresethaltreq = 1
             authbusy = 0
             authenticated = 1
-            anyhalted = 0
+            anyhalted = 1
             allhalted = 0
             anyrunning = 0
             allrunning = 0
-            anyunavail = 0
+            anyunavail = 1
             allunavail = 0
             anynonexistent = 0
-            allnonexistent = 0
+            allnonexistent = 1
             anyresumeack = 1
             allresumeack = 1
             anyhavereset = 0
@@ -349,6 +351,7 @@ def main2():
 
                         # buffer = b''
                         # buffer += received_data
+                        print("Appending the new received data to the buffer ****")
                         buffer = received_data
 
                     except ConnectionResetError:
