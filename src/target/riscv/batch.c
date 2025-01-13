@@ -150,128 +150,128 @@ static int get_delay(const struct riscv_batch *batch, size_t scan_idx,
 	return delays_were_reset ? 0 : delay;
 }
 
-static unsigned int decode_dmi(const struct riscv_batch *batch, char *text,
-		uint32_t address, uint32_t data)
-{
-	static const struct {
-		uint32_t address;
-		enum riscv_debug_reg_ordinal ordinal;
-	} description[] = {
-		{DM_DMCONTROL, DM_DMCONTROL_ORDINAL},
-		{DM_DMSTATUS, DM_DMSTATUS_ORDINAL},
-		{DM_ABSTRACTCS, DM_ABSTRACTCS_ORDINAL},
-		{DM_COMMAND, DM_COMMAND_ORDINAL},
-		{DM_SBCS, DM_SBCS_ORDINAL}
-	};
+// static unsigned int decode_dmi(const struct riscv_batch *batch, char *text,
+// 		uint32_t address, uint32_t data)
+// {
+// 	static const struct {
+// 		uint32_t address;
+// 		enum riscv_debug_reg_ordinal ordinal;
+// 	} description[] = {
+// 		{DM_DMCONTROL, DM_DMCONTROL_ORDINAL},
+// 		{DM_DMSTATUS, DM_DMSTATUS_ORDINAL},
+// 		{DM_ABSTRACTCS, DM_ABSTRACTCS_ORDINAL},
+// 		{DM_COMMAND, DM_COMMAND_ORDINAL},
+// 		{DM_SBCS, DM_SBCS_ORDINAL}
+// 	};
 
-	for (unsigned int i = 0; i < ARRAY_SIZE(description); i++) {
-		if (riscv_get_dmi_address(batch->target, description[i].address)
-				== address) {
-			const riscv_debug_reg_ctx_t context = {
-				.XLEN = { .value = 0, .is_set = false },
-				.DXLEN = { .value = 0, .is_set = false },
-				.abits = { .value = 0, .is_set = false },
-			};
-			return riscv_debug_reg_to_s(text, description[i].ordinal,
-					context, data, RISCV_DEBUG_REG_HIDE_ALL_0);
-		}
-	}
-	if (text)
-		text[0] = '\0';
-	return 0;
-}
+// 	for (unsigned int i = 0; i < ARRAY_SIZE(description); i++) {
+// 		if (riscv_get_dmi_address(batch->target, description[i].address)
+// 				== address) {
+// 			const riscv_debug_reg_ctx_t context = {
+// 				.XLEN = { .value = 0, .is_set = false },
+// 				.DXLEN = { .value = 0, .is_set = false },
+// 				.abits = { .value = 0, .is_set = false },
+// 			};
+// 			return riscv_debug_reg_to_s(text, description[i].ordinal,
+// 					context, data, RISCV_DEBUG_REG_HIDE_ALL_0);
+// 		}
+// 	}
+// 	if (text)
+// 		text[0] = '\0';
+// 	return 0;
+// }
 
-static void log_dmi_decoded(const struct riscv_batch *batch, bool write,
-		uint32_t address, uint32_t data)
-{
-	const size_t size = decode_dmi(batch, /* text */ NULL, address, data) + 1;
-	char * const decoded = malloc(size);
-	if (!decoded) {
-		LOG_ERROR("Not enough memory to allocate %zu bytes.", size);
-		return;
-	}
-	decode_dmi(batch, decoded, address, data);
-	LOG_DEBUG("%s: %s", write ? "write" : "read", decoded);
-	free(decoded);
-}
+// static void log_dmi_decoded(const struct riscv_batch *batch, bool write,
+// 		uint32_t address, uint32_t data)
+// {
+// 	const size_t size = decode_dmi(batch, /* text */ NULL, address, data) + 1;
+// 	char * const decoded = malloc(size);
+// 	if (!decoded) {
+// 		LOG_ERROR("Not enough memory to allocate %zu bytes.", size);
+// 		return;
+// 	}
+// 	decode_dmi(batch, decoded, address, data);
+// 	LOG_DEBUG("%s: %s", write ? "write" : "read", decoded);
+// 	free(decoded);
+// }
 
-static void log_batch(const struct riscv_batch *batch, size_t start_idx,
-		const struct riscv_scan_delays *delays, bool resets_delays,
-		size_t reset_delays_after)
-{
-	if (debug_level < LOG_LVL_DEBUG)
-		return;
+// static void log_batch(const struct riscv_batch *batch, size_t start_idx,
+// 		const struct riscv_scan_delays *delays, bool resets_delays,
+// 		size_t reset_delays_after)
+// {
+// 	if (debug_level < LOG_LVL_DEBUG)
+// 		return;
 
-	const unsigned int scan_bits = batch->fields->num_bits;
-	assert(scan_bits == (unsigned int)riscv_get_dmi_scan_length(batch->target));
-	const unsigned int abits = scan_bits - DTM_DMI_OP_LENGTH
-			- DTM_DMI_DATA_LENGTH;
+// 	const unsigned int scan_bits = batch->fields->num_bits;
+// 	assert(scan_bits == (unsigned int)riscv_get_dmi_scan_length(batch->target));
+// 	const unsigned int abits = scan_bits - DTM_DMI_OP_LENGTH
+// 			- DTM_DMI_DATA_LENGTH;
 
-	/* Determine the "op" and "address" of the scan that preceded the first
-	 * executed scan.
-	 * FIXME: The code here assumes that there were no DMI operations between
-	 * the last execution of the batch and the current one.
-	 * Caching the info about the last executed DMI scan in "dm013_info_t"
-	 * would be a more robust solution.
-	 */
-	bool last_scan_was_read = false;
-	uint32_t last_scan_address = -1 /* to silence maybe-uninitialized */;
-	if (start_idx > 0) {
-		const struct scan_field * const field = &batch->fields[start_idx - 1];
-		assert(field->out_value);
-		last_scan_was_read = buf_get_u32(field->out_value, DTM_DMI_OP_OFFSET,
-				DTM_DMI_OP_LENGTH) == DTM_DMI_OP_READ;
-		last_scan_address = buf_get_u32(field->out_value,
-				DTM_DMI_ADDRESS_OFFSET, abits);
-	}
+// 	/* Determine the "op" and "address" of the scan that preceded the first
+// 	 * executed scan.
+// 	 * FIXME: The code here assumes that there were no DMI operations between
+// 	 * the last execution of the batch and the current one.
+// 	 * Caching the info about the last executed DMI scan in "dm013_info_t"
+// 	 * would be a more robust solution.
+// 	 */
+// 	bool last_scan_was_read = false;
+// 	uint32_t last_scan_address = -1 /* to silence maybe-uninitialized */;
+// 	if (start_idx > 0) {
+// 		const struct scan_field * const field = &batch->fields[start_idx - 1];
+// 		assert(field->out_value);
+// 		last_scan_was_read = buf_get_u32(field->out_value, DTM_DMI_OP_OFFSET,
+// 				DTM_DMI_OP_LENGTH) == DTM_DMI_OP_READ;
+// 		last_scan_address = buf_get_u32(field->out_value,
+// 				DTM_DMI_ADDRESS_OFFSET, abits);
+// 	}
 
-	/* Decode and log every executed scan */
-	for (size_t i = start_idx; i < batch->used_scans; ++i) {
-		static const char * const op_string[] = {"-", "r", "w", "?"};
-		const int delay = get_delay(batch, i, delays, resets_delays,
-				reset_delays_after);
-		const struct scan_field * const field = &batch->fields[i];
+// 	/* Decode and log every executed scan */
+// 	for (size_t i = start_idx; i < batch->used_scans; ++i) {
+// 		static const char * const op_string[] = {"-", "r", "w", "?"};
+// 		const int delay = get_delay(batch, i, delays, resets_delays,
+// 				reset_delays_after);
+// 		const struct scan_field * const field = &batch->fields[i];
 
-		assert(field->out_value);
-		const unsigned int out_op = buf_get_u32(field->out_value,
-				DTM_DMI_OP_OFFSET, DTM_DMI_OP_LENGTH);
-		const uint32_t out_data = buf_get_u32(field->out_value,
-				DTM_DMI_DATA_OFFSET, DTM_DMI_DATA_LENGTH);
-		const uint32_t out_address = buf_get_u32(field->out_value,
-				DTM_DMI_ADDRESS_OFFSET, abits);
-		if (field->in_value) {
-			static const char * const status_string[] = {
-				"+", "?", "F", "b"
-			};
-			const unsigned int in_op = buf_get_u32(field->in_value,
-					DTM_DMI_OP_OFFSET, DTM_DMI_OP_LENGTH);
-			const uint32_t in_data = buf_get_u32(field->in_value,
-					DTM_DMI_DATA_OFFSET, DTM_DMI_DATA_LENGTH);
-			const uint32_t in_address = buf_get_u32(field->in_value,
-					DTM_DMI_ADDRESS_OFFSET, abits);
+// 		assert(field->out_value);
+// 		const unsigned int out_op = buf_get_u32(field->out_value,
+// 				DTM_DMI_OP_OFFSET, DTM_DMI_OP_LENGTH);
+// 		const uint32_t out_data = buf_get_u32(field->out_value,
+// 				DTM_DMI_DATA_OFFSET, DTM_DMI_DATA_LENGTH);
+// 		const uint32_t out_address = buf_get_u32(field->out_value,
+// 				DTM_DMI_ADDRESS_OFFSET, abits);
+// 		if (field->in_value) {
+// 			static const char * const status_string[] = {
+// 				"+", "?", "F", "b"
+// 			};
+// 			const unsigned int in_op = buf_get_u32(field->in_value,
+// 					DTM_DMI_OP_OFFSET, DTM_DMI_OP_LENGTH);
+// 			const uint32_t in_data = buf_get_u32(field->in_value,
+// 					DTM_DMI_DATA_OFFSET, DTM_DMI_DATA_LENGTH);
+// 			const uint32_t in_address = buf_get_u32(field->in_value,
+// 					DTM_DMI_ADDRESS_OFFSET, abits);
 
-			LOG_DEBUG("%db %s %08" PRIx32 " @%02" PRIx32
-					" -> %s %08" PRIx32 " @%02" PRIx32 "; %di",
-					field->num_bits, op_string[out_op], out_data, out_address,
-					status_string[in_op], in_data, in_address, delay);
+// 			LOG_DEBUG("%db %s %08" PRIx32 " @%02" PRIx32
+// 					" -> %s %08" PRIx32 " @%02" PRIx32 "; %di",
+// 					field->num_bits, op_string[out_op], out_data, out_address,
+// 					status_string[in_op], in_data, in_address, delay);
 
-			if (last_scan_was_read && in_op == DTM_DMI_OP_SUCCESS)
-				log_dmi_decoded(batch, /*write*/ false,
-						last_scan_address, in_data);
-		} else {
-			LOG_DEBUG("%db %s %08" PRIx32 " @%02" PRIx32 " -> ?; %di",
-					field->num_bits, op_string[out_op], out_data, out_address,
-					delay);
-		}
+// 			if (last_scan_was_read && in_op == DTM_DMI_OP_SUCCESS)
+// 				log_dmi_decoded(batch, /*write*/ false,
+// 						last_scan_address, in_data);
+// 		} else {
+// 			LOG_DEBUG("%db %s %08" PRIx32 " @%02" PRIx32 " -> ?; %di",
+// 					field->num_bits, op_string[out_op], out_data, out_address,
+// 					delay);
+// 		}
 
-		if (out_op == DTM_DMI_OP_WRITE)
-			log_dmi_decoded(batch, /*write*/ true, out_address,
-					out_data);
+// 		if (out_op == DTM_DMI_OP_WRITE)
+// 			log_dmi_decoded(batch, /*write*/ true, out_address,
+// 					out_data);
 
-		last_scan_was_read = out_op == DTM_DMI_OP_READ;
-		last_scan_address = out_address;
-	}
-}
+// 		last_scan_was_read = out_op == DTM_DMI_OP_READ;
+// 		last_scan_address = out_address;
+// 	}
+// }
 
 int riscv_batch_run_from(struct riscv_batch *batch, size_t start_idx,
 		const struct riscv_scan_delays *delays, bool resets_delays,
@@ -325,7 +325,7 @@ int riscv_batch_run_from(struct riscv_batch *batch, size_t start_idx,
 		}
 	}
 
-	log_batch(batch, start_idx, delays, resets_delays, reset_delays_after);
+	// log_batch(batch, start_idx, delays, resets_delays, reset_delays_after);
 	batch->was_run = true;
 	batch->last_scan_delay = delay;
 	return ERROR_OK;

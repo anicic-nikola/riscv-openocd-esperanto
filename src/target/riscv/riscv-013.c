@@ -1899,13 +1899,14 @@ static int examine_dm(struct target *target)
 
 	dm->hasel_supported = get_field(dmcontrol, DM_DMCONTROL_HASEL);
 
-	uint32_t hartsel =
-		(get_field(dmcontrol, DM_DMCONTROL_HARTSELHI) <<
-		 DM_DMCONTROL_HARTSELLO_LENGTH) |
-		get_field(dmcontrol, DM_DMCONTROL_HARTSELLO);
+	// uint32_t hartsel =
+	// 	(get_field(dmcontrol, DM_DMCONTROL_HARTSELHI) <<
+	// 	 DM_DMCONTROL_HARTSELLO_LENGTH) |
+	// 	get_field(dmcontrol, DM_DMCONTROL_HARTSELLO);
 
 	/* Before doing anything else we must first enumerate the harts. */
-	const int max_hart_count = MIN(RISCV_MAX_HARTS, hartsel + 1);
+	// const int max_hart_count = MIN(RISCV_MAX_HARTS, hartsel + 1);
+	const int max_hart_count = 1;
 	if (dm->hart_count < 0) {
 		for (int i = 0; i < max_hart_count; ++i) {
 			/* TODO: This is extremely similar to
