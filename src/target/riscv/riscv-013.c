@@ -637,11 +637,21 @@ static int dm013_select_target(struct target *target)
 static size_t abstract_cmd_fill_batch(struct riscv_batch *batch,
 		uint32_t command)
 {
-	assert(riscv_batch_available_scans(batch)
-			>= ABSTRACT_COMMAND_BATCH_SIZE);
-	riscv_batch_add_dm_write(batch, DM_COMMAND, command, /* read_back */ true,
-			RISCV_DELAY_ABSTRACT_COMMAND);
-	return riscv_batch_add_dm_read(batch, DM_ABSTRACTCS, RISCV_DELAY_BASE);
+	if (strcmp(batch->target->type->name, "riscv") != 0){
+		assert(riscv_batch_available_scans(batch)
+				>= ABSTRACT_COMMAND_BATCH_SIZE);
+		riscv_batch_add_dm_write(batch, DM_COMMAND, command, /* read_back */ true,
+				RISCV_DELAY_ABSTRACT_COMMAND);
+		return riscv_batch_add_dm_read(batch, DM_ABSTRACTCS, RISCV_DELAY_BASE);
+	}
+	int res_write = dm_write(batch->target, DM_COMMAND, command);
+	if (res_write != ERROR_OK) {
+		return ERROR_FAIL;
+	}
+	return ERROR_OK;
+	// TODO - this needs to be read somewhere later
+	// return dm_read(batch->target, batch->data_out, DM_ABSTRACTCS);
+
 }
 
 static int abstract_cmd_batch_check_and_clear_cmderr(struct target *target,
@@ -698,19 +708,21 @@ int riscv013_execute_abstract_command(struct target *target, uint32_t command,
 	struct riscv_batch *batch = riscv_batch_alloc(target,
 			ABSTRACT_COMMAND_BATCH_SIZE);
 	const size_t abstractcs_read_key = abstract_cmd_fill_batch(batch, command);
+	(void)abstractcs_read_key;
+	return abstractcs_read_key;
 
 	/* Abstract commands are executed while running the batch. */
-	dm->abstract_cmd_maybe_busy = true;
+	// dm->abstract_cmd_maybe_busy = true;
 
-	int res = batch_run_timeout(target, batch);
-	if (res != ERROR_OK)
-		goto cleanup;
+// 	int res = batch_run_timeout(target, batch);
+// 	if (res != ERROR_OK)
+// 		goto cleanup;
 
-	res = abstract_cmd_batch_check_and_clear_cmderr(target, batch,
-			abstractcs_read_key, cmderr);
-cleanup:
-	riscv_batch_free(batch);
-	return res;
+// 	res = abstract_cmd_batch_check_and_clear_cmderr(target, batch,
+// 			abstractcs_read_key, cmderr);
+// cleanup:
+// 	riscv_batch_free(batch);
+// 	return res;
 }
 
 /**
@@ -734,20 +746,20 @@ static void abstract_data_read_fill_batch(struct riscv_batch *batch, unsigned in
 	}
 }
 
-static riscv_reg_t abstract_data_get_from_batch(struct riscv_batch *batch,
-		unsigned int index, unsigned int size_bits)
-{
-	assert(size_bits >= 32);
-	assert(size_bits % 32 == 0);
-	const unsigned int size_in_words = size_bits / 32;
-	assert(size_in_words * sizeof(uint32_t) <= sizeof(riscv_reg_t));
-	riscv_reg_t value = 0;
-	for (unsigned int i = 0; i < size_in_words; ++i) {
-		const uint32_t v = riscv_batch_get_dmi_read_data(batch, i);
-		value |= ((riscv_reg_t)v) << (i * 32);
-	}
-	return value;
-}
+// static riscv_reg_t abstract_data_get_from_batch(struct riscv_batch *batch,
+// 		unsigned int index, unsigned int size_bits)
+// {
+// 	assert(size_bits >= 32);
+// 	assert(size_bits % 32 == 0);
+// 	const unsigned int size_in_words = size_bits / 32;
+// 	assert(size_in_words * sizeof(uint32_t) <= sizeof(riscv_reg_t));
+// 	riscv_reg_t value = 0;
+// 	for (unsigned int i = 0; i < size_in_words; ++i) {
+// 		const uint32_t v = riscv_batch_get_dmi_read_data(batch, i);
+// 		value |= ((riscv_reg_t)v) << (i * 32);
+// 	}
+// 	return value;
+// }
 
 static int read_abstract_arg(struct target *target, riscv_reg_t *value,
 		unsigned int index, unsigned int size_bits)
@@ -758,11 +770,12 @@ static int read_abstract_arg(struct target *target, riscv_reg_t *value,
 	const unsigned char size_in_words = size_bits / 32;
 	struct riscv_batch * const batch = riscv_batch_alloc(target, size_in_words);
 	abstract_data_read_fill_batch(batch, index, size_bits);
-	int result = batch_run_timeout(target, batch);
-	if (result == ERROR_OK)
-		*value = abstract_data_get_from_batch(batch, index, size_bits);
-	riscv_batch_free(batch);
-	return result;
+	// int result = batch_run_timeout(target, batch);
+	// if (result == ERROR_OK)
+	// 	*value = abstract_data_get_from_batch(batch, index, size_bits);
+	// riscv_batch_free(batch);
+	// return result;
+	return ERROR_OK;
 }
 
 /**

@@ -15,6 +15,17 @@ WRITE_COMMAND = 0x01
 RESPONSE_OK = 0x00
 RESPONSE_ERROR = 0x01
 
+      
+# --- Simulated Register State ---
+NUM_GPRS = 32  # 32 general-purpose registers in RISC-V
+
+gprs = [0] * NUM_GPRS
+
+dcsr = 0x40000003
+dpc = 0x00000000
+
+
+
 # --- DMI Registers (RISC-V Debug Spec 0.13) ---
 # These are the essential registers for basic functionality
 DMI_DMCONTROL = 0x10  # Debug Module Control
@@ -78,9 +89,11 @@ def handle_dmi_read(address, conn):
             # clear_kernel_buffer(conn)
             data = 0x1331
             print(f"  DTMCS offset debug: Returning: 0x{data:08X}")
+
         elif address == DMI_DMCONTROL:
             data = 0x41  # Example: Set dmactive (bit 31) and dmireset (bit 0)
             print(f"  DTMCONTROL read! Returning: 0x{data:08X}")
+
         elif address == DMI_DMSTATUS:
             print(f"  DMI_DMSTATUS read! Current value: 0x{data:08X}")
             # Define field values
@@ -179,19 +192,36 @@ def handle_dmi_write(address, data):
         dmi_mem[DMI_DMSTATUS] |= DMSTATUS_VERSION_0_13  # Set version to 0.13
     elif address == DMI_COMMAND:
         # Implement abstract command handling
+        print(f"DMI_COMMAND 0x{DMI_COMMAND} address sets the data now to {data}.")
         dmi_mem[DMI_COMMAND] = data # Write data here
         cmderr = execute_abstract_command(data)
         dmi_mem[DMI_ABSTRACTCS] = (dmi_mem[DMI_ABSTRACTCS] & ~0x7) | cmderr
+
     else:
         # ipdb.set_trace()
         dmi_mem[address] = data  # Now data is the original value 
         
 def execute_abstract_command(command):
     """Executes abstract commands (simplified for this example)."""
+    global dcsr, dpc
     command_type = (command >> 24) & 0xFF
     print(f"Executing abstract command: 0x{command_type:02X}")
-
-    if command_type == 0:  # Access Register
+  
+    # Access Register command as per 
+    # https://riscv.org/wp-content/uploads/2024/12/riscv-debug-release.pdf, page 22, table 3.2
+    if command_type == 0:    
+        '''
+        This command gives the debugger access to CPU registers and allows it to execute the Program
+        Buffer. It performs the following sequence of operations:
+            1. If write is clear and transfer is set, then copy data from the register specified by regno into the
+            arg0 region of data, and perform any side effects that occur when this register is read from
+            M-mode.
+            2. If write is set and transfer is set, then copy data from the arg0 region of data into the register
+            specified by regno, and perform any side effects that occur when this register is written from
+            M-mode.
+            3. If aarpostincrement is set, increment regno.
+            4. Execute the Program Buffer, if postexec is set.
+        '''
         # Extract parameters
         reg_num = (command >> 0) & 0xFFFF
         aarsize = (command >> 16) & 0x7
@@ -205,19 +235,28 @@ def execute_abstract_command(command):
             if write:
                 # Write to register
                 if reg_num >= 0x1000 and reg_num <= 0x101F:
+                    gprs[reg_num - 0x1000] = dmi_mem[DMI_DATA0]
                     print(f"  Writing 0x{dmi_mem[DMI_DATA0]:08X} to GPR {reg_num - 0x1000}")
                 elif reg_num == 0x4:
+                    dpc = dmi_mem[DMI_DATA0]
                     print(f"  Writing 0x{dmi_mem[DMI_DATA0]:08X} to DPC")
+                elif reg_num == 0x7b0:
+                    dcsr = dmi_mem[DMI_DATA0] & 0xFFFFFFFF
+                    print(f"  Writing 0x{dcsr:08X} to DCSR")
                 else:
                     print(f"  Write to register {reg_num} not implemented")
             else:
                 # Read from register
                 if reg_num >= 0x1000 and reg_num <= 0x101F:
+                    data = gprs[reg_num - 0x1000]
                     print(f"  Reading GPR {reg_num - 0x1000}, returning 0x00000000")
-                    dmi_mem[DMI_DATA0] = 0x00000000
+                    dmi_mem[DMI_DATA0] = data
                 elif reg_num == 0x4:
                     print(f"  Reading DPC, returning 0x00000000")
-                    dmi_mem[DMI_DATA0] = 0x00000000
+                    dmi_mem[DMI_DATA0] = dpc 
+                elif reg_num == 0x7b0:
+                    print(f"  Reading DCSR, returning 0x{dcsr:08X}")
+                    dmi_mem[DMI_DATA0] = dcsr
                 else:
                     print(f"  Read from register {reg_num} not implemented")
         return 0  # No error
