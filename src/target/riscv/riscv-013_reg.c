@@ -99,11 +99,11 @@ static int init_cache_entry(struct target *target, uint32_t regno)
  * (via the usual "riscv_reg_get()") and if the read fails, the register is
  * marked as non-existing (via "riscv_reg_impl_set_exist()").
  */
-// static int assume_reg_exist(struct target *target, uint32_t regno)
-// {
-// 	return riscv_reg_impl_init_cache_entry(target, regno,
-// 			/* exist */ true, riscv013_gdb_regno_reg_type(regno));
-// }
+static int assume_reg_exist(struct target *target, uint32_t regno)
+{
+	return riscv_reg_impl_init_cache_entry(target, regno,
+			/* exist */ true, riscv013_gdb_regno_reg_type(regno));
+}
 
 static int examine_xlen(struct target *target)
 {
@@ -124,44 +124,44 @@ static int examine_xlen(struct target *target)
 	return ERROR_OK;
 }
 
-// static int examine_vlenb(struct target *target)
-// {
-// 	RISCV_INFO(r);
+static int examine_vlenb(struct target *target)
+{
+	RISCV_INFO(r);
 
-// 	/* Reading "vlenb" requires "mstatus.vs" to be set, so "mstatus" should
-// 	 * be accessible.*/
-// 	int res = init_cache_entry(target, GDB_REGNO_MSTATUS);
-// 	if (res != ERROR_OK)
-// 		return res;
+	/* Reading "vlenb" requires "mstatus.vs" to be set, so "mstatus" should
+	 * be accessible.*/
+	int res = init_cache_entry(target, GDB_REGNO_MSTATUS);
+	if (res != ERROR_OK)
+		return res;
 
-// 	res = assume_reg_exist(target, GDB_REGNO_VLENB);
-// 	if (res != ERROR_OK)
-// 		return res;
+	res = assume_reg_exist(target, GDB_REGNO_VLENB);
+	if (res != ERROR_OK)
+		return res;
 
-// 	riscv_reg_t vlenb_val;
-// 	if (riscv_reg_get(target, &vlenb_val, GDB_REGNO_VLENB) != ERROR_OK) {
-// 		if (riscv_supports_extension(target, 'V'))
-// 			LOG_TARGET_WARNING(target, "Couldn't read vlenb; vector register access won't work.");
-// 		r->vlenb = 0;
-// 		return riscv_reg_impl_set_exist(target, GDB_REGNO_VLENB, false);
-// 	}
-// 	/* As defined by RISC-V V extension specification:
-// 	 * https://github.com/riscv/riscv-v-spec/blob/2f68ef7256d6ec53e4d2bd7cb12862f406d64e34/v-spec.adoc?plain=1#L67-L72 */
-// 	const unsigned int vlen_max = 65536;
-// 	const unsigned int vlenb_max = vlen_max / 8;
-// 	if (vlenb_val > vlenb_max) {
-// 		LOG_TARGET_WARNING(target, "'vlenb == %" PRIu64
-// 				"' is greater than maximum allowed by specification (%u); vector register access won't work.",
-// 				vlenb_val, vlenb_max);
-// 		r->vlenb = 0;
-// 		return ERROR_OK;
-// 	}
-// 	assert(vlenb_max <= UINT_MAX);
-// 	r->vlenb = (unsigned int)vlenb_val;
+	riscv_reg_t vlenb_val;
+	if (riscv_reg_get(target, &vlenb_val, GDB_REGNO_VLENB) != ERROR_OK) {
+		if (riscv_supports_extension(target, 'V'))
+			LOG_TARGET_WARNING(target, "Couldn't read vlenb; vector register access won't work.");
+		r->vlenb = 0;
+		return riscv_reg_impl_set_exist(target, GDB_REGNO_VLENB, false);
+	}
+	/* As defined by RISC-V V extension specification:
+	 * https://github.com/riscv/riscv-v-spec/blob/2f68ef7256d6ec53e4d2bd7cb12862f406d64e34/v-spec.adoc?plain=1#L67-L72 */
+	const unsigned int vlen_max = 65536;
+	const unsigned int vlenb_max = vlen_max / 8;
+	if (vlenb_val > vlenb_max) {
+		LOG_TARGET_WARNING(target, "'vlenb == %" PRIu64
+				"' is greater than maximum allowed by specification (%u); vector register access won't work.",
+				vlenb_val, vlenb_max);
+		r->vlenb = 0;
+		return ERROR_OK;
+	}
+	assert(vlenb_max <= UINT_MAX);
+	r->vlenb = (unsigned int)vlenb_val;
 
-// 	LOG_TARGET_INFO(target, "Vector support with vlenb=%u", r->vlenb);
-// 	return ERROR_OK;
-// }
+	LOG_TARGET_INFO(target, "Vector support with vlenb=%u", r->vlenb);
+	return ERROR_OK;
+}
 
 enum misa_mxl {
 	MISA_MXL_INVALID = 0,
@@ -328,9 +328,9 @@ int riscv013_reg_examine_all(struct target *target)
 	// if (res != ERROR_OK)
 	// 	return res;
 
-	// res = examine_vlenb(target);
-	// if (res != ERROR_OK)
-	// 	return res;
+	res = examine_vlenb(target);
+	if (res != ERROR_OK)
+		return res;
 
 	// riscv_reg_impl_init_vector_reg_type(target);
 

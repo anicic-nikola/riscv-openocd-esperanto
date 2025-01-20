@@ -38,6 +38,7 @@ DMI_DATA0 = 0x04  # Data register 0 (for abstract commands)
 DMI_DATA1 = 0x05  # Data register 1 (for abstract commands)
 DMI_PROGBUF0 = 0x20  # Program Buffer 0 (for program buffer access)
 DMI_SBCS = 0x38 # System Bus Access Control and Status
+DMI_DCSR = 0x7B0
 
 DMI_DTMCS_OFFSET_DEBUG = 0x0000
 
@@ -59,6 +60,7 @@ dmi_mem = {
     DMI_DATA1: 0x0000,
     DMI_PROGBUF0: 0x0000,
     DMI_SBCS: 0x0000,
+    DMI_DCSR: 0x00000000,
 }
 
 # This is a hack to clear the kernel buffer
@@ -87,7 +89,7 @@ def handle_dmi_read(address, conn):
         # ipdb.set_trace()
         if address == DMI_DTMCS_OFFSET_DEBUG:
             # clear_kernel_buffer(conn)
-            data = 0x1331
+            data = 0x61
             print(f"  DTMCS offset debug: Returning: 0x{data:08X}")
 
         elif address == DMI_DMCONTROL:
@@ -294,7 +296,7 @@ def main1():
                     print(f"Write: Address={address:#010x}, Data={data:#010x}, Length={data_length}")
                     handle_dmi_write(address, data)
                     # Send a response (if needed)
-                    response = struct.pack(">B", RESPONSE_OK) # Example: 0 for success
+                    response = struct.pack(">B", RESPONSE_OK)
                     conn.sendall(struct.pack(">I", len(response)) + response)
                 else:
                     print("Error: Incorrect message length for write operation")
