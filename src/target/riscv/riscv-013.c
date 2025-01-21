@@ -634,6 +634,14 @@ static int dm013_select_target(struct target *target)
 
 #define ABSTRACT_COMMAND_BATCH_SIZE 2
 
+static uint8_t* get_buffer_values_from_uint32(uint32_t val){
+    uint8_t *out_buffer = (uint8_t *)malloc(4 * sizeof(uint8_t));
+    for (size_t i = 0; i < sizeof(uint32_t); i++){
+        out_buffer[i] = (val >> i*8) & 0xFF;
+    }
+    return out_buffer;
+}
+
 static size_t abstract_cmd_fill_batch(struct riscv_batch *batch,
 		uint32_t command)
 {
@@ -648,10 +656,14 @@ static size_t abstract_cmd_fill_batch(struct riscv_batch *batch,
 	if (res_write != ERROR_OK) {
 		return ERROR_FAIL;
 	}
+	int ret_status = riscv_batch_add_dm_read(batch, DM_ABSTRACTCS, RISCV_DELAY_BASE);
+	uint32_t value_read;
+	ret_status |= dm_read(batch->target, &value_read, DM_ABSTRACTCS);
+	if (ret_status != ERROR_OK){
+		return ret_status;
+	}
+	batch->data_out = get_buffer_values_from_uint32(value_read);
 	return ERROR_OK;
-	// TODO - this needs to be read somewhere later
-	// return dm_read(batch->target, batch->data_out, DM_ABSTRACTCS);
-
 }
 
 static int abstract_cmd_batch_check_and_clear_cmderr(struct target *target,
