@@ -39,6 +39,7 @@ DMI_DATA1 = 0x05  # Data register 1 (for abstract commands)
 DMI_PROGBUF0 = 0x20  # Program Buffer 0 (for program buffer access)
 DMI_SBCS = 0x38 # System Bus Access Control and Status
 DMI_DCSR = 0x7B0
+DMI_MSTATUS = 0x300
 
 DMI_DTMCS_OFFSET_DEBUG = 0x0000
 
@@ -61,6 +62,7 @@ dmi_mem = {
     DMI_PROGBUF0: 0x0000,
     DMI_SBCS: 0x0000,
     DMI_DCSR: 0x00000000,
+    DMI_MSTATUS: 0x00000000,
 }
 
 # This is a hack to clear the kernel buffer
@@ -259,6 +261,9 @@ def execute_abstract_command(command):
                 elif reg_num == 0x7b0:
                     print(f"  Reading DCSR, returning 0x{dcsr:08X}")
                     dmi_mem[DMI_DATA0] = dcsr
+                elif reg_num == 0x300:
+                    print(f"  Reading MSTATUS, returning 0xA00000200")
+                    dmi_mem[DMI_DATA0] = 0xA00000200 
                 else:
                     print(f"  Read from register {reg_num} not implemented")
         return 0  # No error
