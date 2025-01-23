@@ -673,7 +673,7 @@ static int abstract_cmd_batch_check_and_clear_cmderr(struct target *target,
 	uint32_t abstractcs = riscv_batch_get_dmi_read_data(batch,
 			abstractcs_read_key);
 	int res;
-	// LOG_DEBUG_REG(target, DM_ABSTRACTCS, abstractcs);
+	LOG_DEBUG_REG(target, DM_ABSTRACTCS, abstractcs);
 	if (get_field32(abstractcs, DM_ABSTRACTCS_BUSY) != 0) {
 		res = wait_for_idle(target, &abstractcs);
 		if (res != ERROR_OK)
