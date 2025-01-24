@@ -85,6 +85,8 @@ def clear_kernel_buffer(sock):
 def handle_dmi_read(address, conn):
     """Handles DMI read requests."""
     # ipdb.set_trace()
+    if not hasattr(handle_dmi_read, "counter"):
+        handle_dmi_read.counter = [0]
     if address in dmi_mem:
         data = dmi_mem[address]
         print(f"DMI Read: Addr=0x{address:02X}, Data=0x{data:08X}")
@@ -140,6 +142,9 @@ def handle_dmi_read(address, conn):
                 ((allhavereset & 0x01) << 19) | \
                 ((impebreak & 0x03) << 20) | \
                 (0 << 31)  # bit 31 is fixed to 0
+            handle_dmi_read.counter[0] += 1
+            if handle_dmi_read.counter[0] == 1:
+                data = 0x400C82 # This is what spike simulator returns later when halting the hart
 
             print(f"  DMI_DMSTATUS read! Constructed value: 0x{data:08X}")
         # Pack the 32-bit data only once:
