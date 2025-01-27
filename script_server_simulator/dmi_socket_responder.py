@@ -143,8 +143,10 @@ def handle_dmi_read(address, conn):
                 ((impebreak & 0x03) << 20) | \
                 (0 << 31)  # bit 31 is fixed to 0
             handle_dmi_read.counter[0] += 1
-            if handle_dmi_read.counter[0] > 0:
+            if handle_dmi_read.counter[0] == 0:
                 data = 0x400C82 # This is what spike simulator returns later when halting the hart
+            if handle_dmi_read.counter[0] > 1:
+                data = 0x400282 # This is what spike simulator returns later when halting the hart
 
             print(f"  DMI_DMSTATUS read! Constructed value: 0x{data:08X}")
         # Pack the 32-bit data only once:
