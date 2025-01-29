@@ -1,8 +1,9 @@
 import socket
 import struct
 import time
-import ipdb
+# import ipdb
 import binascii
+import threading
 
 HOST = 'localhost'
 PORT = 5555
@@ -81,12 +82,79 @@ def clear_kernel_buffer(sock):
     finally:
         sock.setblocking(True)
 
+# def handle_gdb_packet(packet):
+#     if packet.startswith("qSupported"):
+#         return "PacketSize=4000;qXfer:features:read+;vContSupported+"
+#     elif packet == "vCont?":
+#         return "vCont;c;C;s;S"
+#     elif packet.startswith("qXfer:features:read:target.xml"):
+#         _, params = packet.split(":")
+#         parts = params.split(",")
+#         offset = int(parts[0], 16)
+#         length = int(parts[1], 16)
+        
+#         # Load your target.xml content
+#         with open("target.xml", "r") as f:
+#             xml_content = f.read()
+        
+#         # Return the requested chunk
+#         chunk = xml_content[offset:offset+length]
+#         more = "m" if (offset + length) < len(xml_content) else "l"
+#         return f"${more}{chunk}#00"
+#         # return handle_target_xml_request(packet)
+#     elif packet.startswith("vCont"):
+#         return handle_vcont(packet)
+#     else:
+#         print("Unhandled packet!!!")
+#         return ""  # Unhandled packets
+
+# hart_state = "halted"
+
+# def handle_vcont(packet):
+#     global hart_state
+#     if packet == "vCont;c":  # Continue
+#         hart_state = "running"
+#         return "OK"
+#     elif packet == "vCont;s":  # Step
+#         # Simulate stepping one instruction
+#         hart_state = "halted"
+#         return "S05"  # Signal a breakpoint (trap)
+
+# def handle_gdb_connection(conn):
+#     """Handles GDB Remote Serial Protocol (RSP) packets."""
+#     try:
+#         while True:
+#             packet = conn.recv(4096).decode().strip()
+#             if not packet:
+#                 break
+#             print(f"Received GDB packet: {packet}")
+
+#             # Handle packets like qSupported, vCont, etc.
+#             response = handle_gdb_packet(packet)
+#             if response:
+#                 conn.sendall(response.encode())
+#     except Exception as e:
+#         print(f"GDB connection error: {e}")
+#     finally:
+#         conn.close()
+
+# def start_gdb_server():
+#     """Starts a GDB server on port 3333."""
+#     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+#         s.bind(('localhost', 3333))
+#         s.listen()
+#         print("GDB server listening on port 3333")
+#         while True:
+#             conn, addr = s.accept()
+#             print(f"GDB connected from {addr}")
+#             threading.Thread(target=handle_gdb_connection, args=(conn,)).start()
 
 def handle_dmi_read(address, conn):
     """Handles DMI read requests."""
     # ipdb.set_trace()
     if not hasattr(handle_dmi_read, "counter"):
         handle_dmi_read.counter = [0]
+    print(f"^^^^^^^^^ Current counter state for the handle dmi read is: {handle_dmi_read.counter[0]}")
     if address in dmi_mem:
         data = dmi_mem[address]
         print(f"DMI Read: Addr=0x{address:02X}, Data=0x{data:08X}")
@@ -109,7 +177,7 @@ def handle_dmi_read(address, conn):
             authbusy = 0
             authenticated = 1
             anyhalted = 1
-            allhalted = 0
+            allhalted = 1
             anyrunning = 0
             allrunning = 0
             anyunavail = 1
@@ -145,9 +213,28 @@ def handle_dmi_read(address, conn):
             handle_dmi_read.counter[0] += 1
             if handle_dmi_read.counter[0] == 0:
                 data = 0x400C82 # This is what spike simulator returns later when halting the hart
-            if handle_dmi_read.counter[0] >= 1:
+            if handle_dmi_read.counter[0] >= 1 and handle_dmi_read.counter[0] < 10:
                 data = 0x400282
-
+            if handle_dmi_read.counter[0] > 10:
+                data = (0x2 & 0x0f) | \
+                    ((0x0 & 0x01) << 4) | \
+                    ((0x0 & 0x01) << 5) | \
+                    ((0x0 & 0x01) << 6) | \
+                    ((0x1 & 0x01) << 7) | \
+                    ((0x1 & 0x01) << 8) | \
+                    ((0x1 & 0x01) << 9) | \
+                    ((0x0 & 0x01) << 10) | \
+                    ((0x0 & 0x01) << 11) | \
+                    ((0x0 & 0x01) << 12) | \
+                    ((0x0 & 0x01) << 13) | \
+                    ((0x0 & 0x01) << 14) | \
+                    ((0x0 & 0x01) << 15) | \
+                    ((0x1 & 0x01) << 16) | \
+                    ((0x1 & 0x01) << 17) | \
+                    ((0x0 & 0x01) << 18) | \
+                    ((0x0 & 0x01) << 19) | \
+                    ((0x0 & 0x03) << 20) | \
+                    (0 << 31)  # bit 31 is fixed to 0
             print(f"  DMI_DMSTATUS read! Constructed value: 0x{data:08X}")
         # Pack the 32-bit data only once:
         response_data = struct.pack(">I", data) 
@@ -278,65 +365,8 @@ def execute_abstract_command(command):
         print(f"  Command type {command_type} not implemented")
         return 7  # Command not implemented
 
-def main1():
-    def handle_connection(conn):
-        buffer = b""
-        while True:
-            # Read the length of the message (4 bytes for a 32-bit length)
-            while len(buffer) < 4:
-                data = conn.recv(1024)
-                if not data:
-                    return
-                buffer += data
-
-            message_length = struct.unpack(">I", buffer[:4])[0]
-            buffer = buffer[4:]
-
-            # Read the rest of the message
-            while len(buffer) < message_length:
-                data = conn.recv(1024)
-                if not data:
-                    return
-                buffer += data
-
-            # Process the complete message
-            command, address, data_length = struct.unpack(">BIB", buffer[:6])
-
-            if command == WRITE_COMMAND:
-                if message_length == 10:
-                    data = struct.unpack(">I", buffer[6:10])[0]
-                    print(f"Write: Address={address:#010x}, Data={data:#010x}, Length={data_length}")
-                    handle_dmi_write(address, data)
-                    # Send a response (if needed)
-                    response = struct.pack(">B", RESPONSE_OK)
-                    conn.sendall(struct.pack(">I", len(response)) + response)
-                else:
-                    print("Error: Incorrect message length for write operation")
-
-            elif command == READ_COMMAND:
-                if message_length == 6:
-                    print(f"Read: Address={address:#010x}, Length={data_length}")
-                    handle_dmi_read(address, conn)
-                else:
-                    print("Error: Incorrect message length for read operation")
-
-            else:
-                print(f"Unknown command: {command}")
-
-            buffer = buffer[message_length:]
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, PORT))
-        s.listen()
-        print(f"Server listening on {HOST}:{PORT}")
-        while True:
-            conn, addr = s.accept()
-            with conn:
-                print(f"Connected by {addr}")
-                handle_connection(conn)
-
-
-def main2():
+def main():
+    # threading.Thread(target=start_gdb_server, daemon=True).start()
     # --- Main Server Loop ---
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
@@ -389,7 +419,6 @@ def main2():
                                 buffer = buffer[6:]
                         if not buffer:
                             # If buffer is empty, receive at least 6 bytes
-                            print("**** Buffer is empty, receiving 6 bytes now.")
                             received_data = conn.recv(6)
                         else:
                             # If buffer has some data, check for and remove stray '@'
@@ -404,7 +433,6 @@ def main2():
 
                         # buffer = b''
                         # buffer += received_data
-                        print("Appending the new received data to the buffer ****")
                         buffer = received_data
 
                     except ConnectionResetError:
@@ -412,39 +440,4 @@ def main2():
                         break
                 buffer = b''
 
-main2()
-
-# This works somehow
-# =============================================================================================
-
-# import socket
-# import struct
-# import time
-
-# HOST = 'localhost'
-# PORT = 5555
-
-# with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-#     s.bind((HOST, PORT))
-#     s.listen()
-#     print(f"Server listening on {HOST}:{PORT}")
-#     while True:
-#         conn, addr = s.accept()
-#         with conn:
-#             print(f"Connected by {addr}")
-#             while True:
-#                 data = conn.recv(1024)
-#                 if not data:
-#                     break
-#                 print(f"Received raw data: {data.hex()}")
-
-#                 # Hardcoded dtmcontrol read request handling
-#                 if data.startswith(b'\x00\x04\x00\x00\x00\x00'):
-#                     print("DTMCONTROL read request detected!")
-#                     # Valid dtmcontrol value with version 0:
-#                     dtmcontrol_value = 0x00000001
-#                     response_data = struct.pack(">I", dtmcontrol_value)
-#                     response = struct.pack(">B", 0) + response_data  # Status OK (0)
-#                     time.sleep(0.001)  # Introduce a delay
-#                     conn.sendall(response)
-#                     print(f"Sent response: {response.hex()}")
+main()
