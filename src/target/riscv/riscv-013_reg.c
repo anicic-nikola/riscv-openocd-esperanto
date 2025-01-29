@@ -185,117 +185,117 @@ unsigned int mxl_to_xlen(enum misa_mxl mxl)
 	return 0;
 }
 
-// static int check_misa_mxl(const struct target *target)
-// {
-// 	RISCV_INFO(r);
+static int check_misa_mxl(const struct target *target)
+{
+	RISCV_INFO(r);
 
-// 	if (r->misa == 0) {
-// 		LOG_TARGET_WARNING(target, "'misa' register is read as zero."
-// 				"OpenOCD will not be able to determine some hart's capabilities.");
-// 		return ERROR_OK;
-// 	}
-// 	const unsigned int dxlen = riscv_xlen(target);
-// 	assert(dxlen <= sizeof(riscv_reg_t) * CHAR_BIT);
-// 	assert(dxlen >= 2);
-// 	const riscv_reg_t misa_mxl_mask = (riscv_reg_t)0x3 << (dxlen - 2);
-// 	const unsigned int mxl = get_field(r->misa, misa_mxl_mask);
-// 	if (mxl == MISA_MXL_INVALID) {
-// 		/* This is not an error!
-// 		 * Imagine the platform that:
-// 		 * - Has no abstract access to CSRs, so that CSRs are read
-// 		 *   through Program Buffer via "csrr" instruction.
-// 		 * - Complies to v1.10 of the Priveleged Spec, so that misa.mxl
-// 		 *   is WARL and MXLEN may be chainged.
-// 		 *   https://github.com/riscv/riscv-isa-manual/commit/9a7dd2fe29011587954560b5dcf1875477b27ad8
-// 		 * - DXLEN == MXLEN on reset == 64.
-// 		 * In a following scenario:
-// 		 * - misa.mxl was written, so that MXLEN is 32.
-// 		 * - Debugger connects to the target.
-// 		 * - Debugger observes DXLEN == 64.
-// 		 * - Debugger reads misa:
-// 		 *   - Abstract access fails with "cmderr == not supported".
-// 		 *   - Access via Program Buffer involves reading "misa" to an
-// 		 *     "xreg" via "csrr", so that the "xreg" is filled with
-// 		 *     zero-extended value of "misa" (since "misa" is
-// 		 *     MXLEN-wide).
-// 		 * - Debugger derives "misa.mxl" assumig "misa" is DXLEN-bit
-// 		 *   wide (64) while MXLEN is 32 and therefore erroneously
-// 		 *   assumes "misa.mxl" to be zero (invalid).
-// 		 */
-// 		LOG_TARGET_WARNING(target, "Detected DXLEN (%u) does not match "
-// 				"MXLEN: misa.mxl == 0, misa == 0x%" PRIx64 ".",
-// 				dxlen, r->misa);
-// 		return ERROR_OK;
-// 	}
-// 	const unsigned int mxlen = mxl_to_xlen(mxl);
-// 	if (dxlen < mxlen) {
-// 		LOG_TARGET_ERROR(target,
-// 				"MXLEN (%u) reported in misa.mxl field exceeds "
-// 				"the detected DXLEN (%u)",
-// 				mxlen, dxlen);
-// 		return ERROR_FAIL;
-// 	}
-// 	/* NOTE:
-// 	 * The value of "misa.mxl" may stil not coincide with "xlen".
-// 	 * "misa[26:XLEN-3]" bits are marked as WIRI in at least version 1.10
-// 	 * of RISC-V Priveleged Spec. Therefore, if "xlen" is erroneously
-// 	 * assumed to be 32 when it actually is 64, "mxl" will be read from
-// 	 * this WIRI field and may be equal to "MISA_MXL_32" by coincidence.
-// 	 * This is not an issue though from the version 1.11 onward, since
-// 	 * "misa[26:XLEN-3]" became WARL and equal to 0.
-// 	 */
+	if (r->misa == 0) {
+		LOG_TARGET_WARNING(target, "'misa' register is read as zero."
+				"OpenOCD will not be able to determine some hart's capabilities.");
+		return ERROR_OK;
+	}
+	const unsigned int dxlen = riscv_xlen(target);
+	assert(dxlen <= sizeof(riscv_reg_t) * CHAR_BIT);
+	assert(dxlen >= 2);
+	const riscv_reg_t misa_mxl_mask = (riscv_reg_t)0x3 << (dxlen - 2);
+	const unsigned int mxl = get_field(r->misa, misa_mxl_mask);
+	if (mxl == MISA_MXL_INVALID) {
+		/* This is not an error!
+		 * Imagine the platform that:
+		 * - Has no abstract access to CSRs, so that CSRs are read
+		 *   through Program Buffer via "csrr" instruction.
+		 * - Complies to v1.10 of the Priveleged Spec, so that misa.mxl
+		 *   is WARL and MXLEN may be chainged.
+		 *   https://github.com/riscv/riscv-isa-manual/commit/9a7dd2fe29011587954560b5dcf1875477b27ad8
+		 * - DXLEN == MXLEN on reset == 64.
+		 * In a following scenario:
+		 * - misa.mxl was written, so that MXLEN is 32.
+		 * - Debugger connects to the target.
+		 * - Debugger observes DXLEN == 64.
+		 * - Debugger reads misa:
+		 *   - Abstract access fails with "cmderr == not supported".
+		 *   - Access via Program Buffer involves reading "misa" to an
+		 *     "xreg" via "csrr", so that the "xreg" is filled with
+		 *     zero-extended value of "misa" (since "misa" is
+		 *     MXLEN-wide).
+		 * - Debugger derives "misa.mxl" assumig "misa" is DXLEN-bit
+		 *   wide (64) while MXLEN is 32 and therefore erroneously
+		 *   assumes "misa.mxl" to be zero (invalid).
+		 */
+		LOG_TARGET_WARNING(target, "Detected DXLEN (%u) does not match "
+				"MXLEN: misa.mxl == 0, misa == 0x%" PRIx64 ".",
+				dxlen, r->misa);
+		return ERROR_OK;
+	}
+	const unsigned int mxlen = mxl_to_xlen(mxl);
+	if (dxlen < mxlen) {
+		LOG_TARGET_ERROR(target,
+				"MXLEN (%u) reported in misa.mxl field exceeds "
+				"the detected DXLEN (%u)",
+				mxlen, dxlen);
+		return ERROR_FAIL;
+	}
+	/* NOTE:
+	 * The value of "misa.mxl" may stil not coincide with "xlen".
+	 * "misa[26:XLEN-3]" bits are marked as WIRI in at least version 1.10
+	 * of RISC-V Priveleged Spec. Therefore, if "xlen" is erroneously
+	 * assumed to be 32 when it actually is 64, "mxl" will be read from
+	 * this WIRI field and may be equal to "MISA_MXL_32" by coincidence.
+	 * This is not an issue though from the version 1.11 onward, since
+	 * "misa[26:XLEN-3]" became WARL and equal to 0.
+	 */
 
-// 	/* Display this as early as possible to help people who are using
-// 	 * really slow simulators. */
-// 	LOG_TARGET_DEBUG(target, " XLEN=%d, misa=0x%" PRIx64, riscv_xlen(target), r->misa);
-// 	return ERROR_OK;
-// }
+	/* Display this as early as possible to help people who are using
+	 * really slow simulators. */
+	LOG_TARGET_DEBUG(target, " XLEN=%d, misa=0x%" PRIx64, riscv_xlen(target), r->misa);
+	return ERROR_OK;
+}
 
-// static int examine_misa(struct target *target)
-// {
-// 	RISCV_INFO(r);
+static int examine_misa(struct target *target)
+{
+	RISCV_INFO(r);
 
-// 	int res = init_cache_entry(target, GDB_REGNO_MISA);
-// 	if (res != ERROR_OK)
-// 		return res;
+	int res = init_cache_entry(target, GDB_REGNO_MISA);
+	if (res != ERROR_OK)
+		return res;
 
-// 	res = riscv_reg_get(target, &r->misa, GDB_REGNO_MISA);
-// 	if (res != ERROR_OK)
-// 		return res;
-// 	return check_misa_mxl(target);
-// }
+	res = riscv_reg_get(target, &r->misa, GDB_REGNO_MISA);
+	if (res != ERROR_OK)
+		return res;
+	return check_misa_mxl(target);
+}
 
-// static int examine_mtopi(struct target *target)
-// {
-// 	RISCV_INFO(r);
+static int examine_mtopi(struct target *target)
+{
+	RISCV_INFO(r);
 
-// 	/* Assume the registers exist */
-// 	r->mtopi_readable = true;
-// 	r->mtopei_readable = true;
+	/* Assume the registers exist */
+	r->mtopi_readable = true;
+	r->mtopei_readable = true;
 
-// 	int res = assume_reg_exist(target, GDB_REGNO_MTOPI);
-// 	if (res != ERROR_OK)
-// 		return res;
-// 	res = assume_reg_exist(target, GDB_REGNO_MTOPEI);
-// 	if (res != ERROR_OK)
-// 		return res;
+	int res = assume_reg_exist(target, GDB_REGNO_MTOPI);
+	if (res != ERROR_OK)
+		return res;
+	res = assume_reg_exist(target, GDB_REGNO_MTOPEI);
+	if (res != ERROR_OK)
+		return res;
 
-// 	riscv_reg_t value;
-// 	if (riscv_reg_get(target, &value, GDB_REGNO_MTOPI) != ERROR_OK) {
-// 		r->mtopi_readable = false;
-// 		r->mtopei_readable = false;
-// 	} else if (riscv_reg_get(target, &value, GDB_REGNO_MTOPEI) != ERROR_OK) {
-// 		LOG_TARGET_INFO(target, "S?aia detected without IMSIC");
-// 		r->mtopei_readable = false;
-// 	} else {
-// 		LOG_TARGET_INFO(target, "S?aia detected with IMSIC");
-// 	}
-// 	res = riscv_reg_impl_set_exist(target, GDB_REGNO_MTOPI, r->mtopi_readable);
-// 	if (res != ERROR_OK)
-// 		return res;
+	riscv_reg_t value;
+	if (riscv_reg_get(target, &value, GDB_REGNO_MTOPI) != ERROR_OK) {
+		r->mtopi_readable = false;
+		r->mtopei_readable = false;
+	} else if (riscv_reg_get(target, &value, GDB_REGNO_MTOPEI) != ERROR_OK) {
+		LOG_TARGET_INFO(target, "S?aia detected without IMSIC");
+		r->mtopei_readable = false;
+	} else {
+		LOG_TARGET_INFO(target, "S?aia detected with IMSIC");
+	}
+	res = riscv_reg_impl_set_exist(target, GDB_REGNO_MTOPI, r->mtopi_readable);
+	if (res != ERROR_OK)
+		return res;
 
-// 	return riscv_reg_impl_set_exist(target, GDB_REGNO_MTOPEI, r->mtopei_readable);
-// }
+	return riscv_reg_impl_set_exist(target, GDB_REGNO_MTOPEI, r->mtopei_readable);
+}
 
 /**
  * This function assumes target's DM to be initialized (target is able to
@@ -324,19 +324,21 @@ int riscv013_reg_examine_all(struct target *target)
 	if (res != ERROR_OK)
 		return res;
 
-	// res = examine_misa(target);
-	// if (res != ERROR_OK)
-	// 	return res;
+	// Analyzes the MISA (Machine ISA) CSR to detect supported RISC-V extensions. 
+	// This determines fundamental CPU capabilities like floating-point support, 32/64 bit arch. etc.
+	res = examine_misa(target);
+	if (res != ERROR_OK)
+		return res;
 
 	res = examine_vlenb(target);
 	if (res != ERROR_OK)
 		return res;
 
-	// riscv_reg_impl_init_vector_reg_type(target);
+	riscv_reg_impl_init_vector_reg_type(target);
 
-	// res = examine_mtopi(target);
-	// if (res != ERROR_OK)
-	// 	return res;
+	res = examine_mtopi(target);
+	if (res != ERROR_OK)
+		return res;
 
 	for (uint32_t regno = 0; regno < target->reg_cache->num_regs; ++regno) {
 		res = init_cache_entry(target, regno);
@@ -344,11 +346,11 @@ int riscv013_reg_examine_all(struct target *target)
 			return res;
 	}
 
-	// res = riscv_reg_impl_expose_csrs(target);
-	// if (res != ERROR_OK)
-	// 	return res;
+	res = riscv_reg_impl_expose_csrs(target);
+	if (res != ERROR_OK)
+		return res;
 
-	// riscv_reg_impl_hide_csrs(target);
+	riscv_reg_impl_hide_csrs(target);
 
 	return ERROR_OK;
 }
