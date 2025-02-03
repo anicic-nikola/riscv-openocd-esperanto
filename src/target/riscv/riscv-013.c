@@ -1821,12 +1821,8 @@ static int reset_dm(struct target *target)
 	uint32_t dmcontrol;
 	
 	int result = 0;
-	if (strcmp(target->type->name, "riscv") != 0){
-		result = dm_read(target, &dmcontrol, DM_DMCONTROL);
-	} else {
-		result = socket_dmi_read(target, &dmcontrol, DM_DMCONTROL);
-		// result = dm_read(target, &dmcontrol, DM_DMCONTROL);
-	}
+	result = dm_read(target, &dmcontrol, DM_DMCONTROL);
+
 	if (result != ERROR_OK)
 		return result;
 
