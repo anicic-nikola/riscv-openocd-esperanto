@@ -5,7 +5,7 @@
 #include <helper/command.h>
 #include <helper/log.h>
 #include "jtag/interface.h"
-#include "../../../target/riscv/transport/riscv_socket_dmi.h"
+#include "jtag/riscv_socket_dmi.h"
 
 #define MAX_DTM_DRIVERS 10
 

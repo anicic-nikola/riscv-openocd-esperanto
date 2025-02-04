@@ -1,7 +1,7 @@
 #ifndef SOCKET_DMI_H
 #define SOCKET_DMI_H
 
-#include "jtag/drivers/riscv_dtm/dtm.h"
+#include "drivers/riscv_dtm/dtm.h"
 #include "helper/command.h"
 #include <stdint.h>
 

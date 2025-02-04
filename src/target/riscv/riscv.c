@@ -29,7 +29,7 @@
 #include <helper/bits.h>
 #include "field_helpers.h"
 #include "jtag/drivers/riscv_dtm/dtm.h"
-#include "target/riscv/transport/riscv_socket_dmi.h"
+#include "jtag/riscv_socket_dmi.h"
 
 /*** JTAG registers. ***/
 

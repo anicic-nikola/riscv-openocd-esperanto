@@ -5,7 +5,7 @@
  * latest draft.
  */
 
-#include "transport/riscv_socket_dmi.h"
+#include "jtag/riscv_socket_dmi.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
