@@ -17,3 +17,4 @@ int register_riscv_socket_transport(void);
 
 int socket_dmi_read(struct target *target, uint32_t *data, uint32_t address);
 int socket_dmi_write(struct target *target, uint32_t address, uint32_t data);
+bool transport_is_socket(void);
