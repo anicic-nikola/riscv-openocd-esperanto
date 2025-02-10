@@ -152,9 +152,13 @@ def clear_kernel_buffer(sock):
 def handle_dmi_read(address, conn):
     """Handles DMI read requests."""
     # ipdb.set_trace()
-    if not hasattr(handle_dmi_read, "counter"):
-        handle_dmi_read.counter = [0]
-    print(f"^^^^^^^^^ Current counter state for the handle dmi read is: {handle_dmi_read.counter[0]}")
+
+    # COUNTERS
+    if not hasattr(handle_dmi_read, "dmi_status_counter"):
+        handle_dmi_read.dmi_status_counter = [0]
+    if not hasattr(handle_dmi_read, "dmi_dmcontrol_counter"):
+        handle_dmi_read.dmi_dmcontrol_counter = [0]
+
     if address in dmi_mem:
         data = dmi_mem[address]
         print(f"DMI Read: Addr=0x{address:02X}, Data=0x{data:08X}")
@@ -165,7 +169,12 @@ def handle_dmi_read(address, conn):
             print(f"  DTMCS offset debug: Returning: 0x{data:08X}")
 
         elif address == DMI_DMCONTROL:
-            data = 0x41  # Example: Set dmactive (bit 31) and dmireset (bit 0)
+            print(f"******************** Counter DMI_CONTROL is: {handle_dmi_read.dmi_dmcontrol_counter[0]}")
+            if handle_dmi_read.dmi_dmcontrol_counter[0] == 2:
+                data = 0x40  # Example: Set dmactive (bit 31) and dmireset (bit 0)
+            else:
+                data = 0x41
+            handle_dmi_read.dmi_dmcontrol_counter[0] += 1
             print(f"  DTMCONTROL read! Returning: 0x{data:08X}")
 
         elif address == DMI_DMSTATUS:
@@ -210,12 +219,12 @@ def handle_dmi_read(address, conn):
                 ((allhavereset & 0x01) << 19) | \
                 ((impebreak & 0x03) << 20) | \
                 (0 << 31)  # bit 31 is fixed to 0
-            handle_dmi_read.counter[0] += 1
-            if handle_dmi_read.counter[0] == 0:
+            handle_dmi_read.dmi_status_counter[0] += 1
+            if handle_dmi_read.dmi_status_counter[0] == 0:
                 data = 0x400C82 # This is what spike simulator returns later when halting the hart
-            if handle_dmi_read.counter[0] >= 1 and handle_dmi_read.counter[0] < 10:
+            if handle_dmi_read.dmi_status_counter[0] >= 1 and handle_dmi_read.dmi_status_counter[0] < 10:
                 data = 0x400282
-            if handle_dmi_read.counter[0] > 10:
+            if handle_dmi_read.dmi_status_counter[0] > 10:
                 data = (0x2 & 0x0f) | \
                     ((0x0 & 0x01) << 4) | \
                     ((0x0 & 0x01) << 5) | \
@@ -341,6 +350,9 @@ def execute_abstract_command(command):
                 elif reg_num == 0x7b0:
                     dcsr = dmi_mem[DMI_DATA0] & 0xFFFFFFFF
                     print(f"  Writing 0x{dcsr:08X} to DCSR")
+                elif reg_num == 0x301:
+                    dcsr = dmi_mem[DMI_DATA0] & 0xFFFFFFFF
+                    print(f"  Writing 0x{dcsr:08X} to DCSR")
                 else:
                     print(f"  Write to register {reg_num} not implemented")
             else:
@@ -358,6 +370,9 @@ def execute_abstract_command(command):
                 elif reg_num == 0x300:
                     print(f"  Reading MSTATUS, returning 0xA00000200")
                     dmi_mem[DMI_DATA0] = 0xA00000200 
+                elif reg_num == 0x301:
+                    print(f"  Reading MSTATUS, returning 0xA00000200")
+                    dmi_mem[DMI_DATA0] = 0x331008 
                 else:
                     print(f"  Read from register {reg_num} not implemented")
         return 0  # No error

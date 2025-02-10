@@ -1846,17 +1846,6 @@ static int reset_dm(struct target *target)
 			uint32_t result_field = get_field(dmcontrol, DM_DMCONTROL_DMACTIVE);
 			LOG_TARGET_DEBUG(target, "******* result_field: %d", result_field);
 			result = dm_read(target, &dmcontrol, DM_DMCONTROL);
-			if (! IS_TARGET_JTAG(target->type->name)){
-				// Without this piece of code communication over the socket fails
-				// The reason is that above we read the DMACTIVE status. If it was 1 it means it was active. 
-				// Then we see it is 1, we read it and send 1 back again to the target. 
-				// Now OpenOCD does something strange: 
-				// "If I see that you're telling me to be 1, but I'm already 1, that means you want me to reset."
-				// As a part of resetting it should eventually turn to 0 (off state). 
-				// This confirms reset is in progress.  We are waiting for the dmactive to be 0 in this do-while loop. 
-				// Here what I did is a bit of a hack since I never get dmstatus to be 0. 
-				dmcontrol = dmcontrol & ~1; // clear the last bit to indicate that the reset is complete
-			}
 			if (result != ERROR_OK)
 				return result;
 
