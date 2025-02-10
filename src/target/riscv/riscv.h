@@ -32,6 +32,8 @@ struct riscv_program;
 #define RISCV_PGSIZE BIT(RISCV_PGSHIFT)
 #define RISCV_PGBASE(addr) ((addr) & ~(RISCV_PGSIZE - 1))
 #define RISCV_PGOFFSET(addr) ((addr) & (RISCV_PGSIZE - 1))
+#define IS_TARGET_JTAG(name) \
+	(strcmp(name, "riscv") != 0)
 
 #define PG_MAX_LEVEL 5
 

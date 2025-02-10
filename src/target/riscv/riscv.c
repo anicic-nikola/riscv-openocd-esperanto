@@ -517,7 +517,7 @@ static int riscv_init_target(struct command_context *cmd_ctx,
 	info->cmd_ctx = cmd_ctx;
 	info->reset_delays_wait = -1;
 
-	if (strcmp(target->type->name, "riscv") != 0){
+	if (IS_TARGET_JTAG(target->type->name)){
 		select_dtmcontrol.num_bits = target->tap->ir_length;
 		select_dbus.num_bits = target->tap->ir_length;
 		select_idcode.num_bits = target->tap->ir_length;
@@ -2329,7 +2329,7 @@ static int riscv_examine(struct target *target)
 
 	RISCV_INFO(info);
 	uint32_t dtmcontrol;
-	if (strcmp(target->type->name, "riscv") != 0){
+	if (IS_TARGET_JTAG(target->type->name)){
 		if (dtmcontrol_scan(target, 0, &dtmcontrol) != ERROR_OK || dtmcontrol == 0) {
 			LOG_TARGET_ERROR(target, "Could not read dtmcontrol. Check JTAG connectivity/board power.");
 			return ERROR_FAIL;

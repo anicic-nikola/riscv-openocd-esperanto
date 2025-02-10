@@ -21,6 +21,7 @@
 #include <helper/align.h>
 #include <helper/log.h>
 #include "jtag/jtag.h"
+#include "jtag/core_communicator_wrapper.h"
 #include "target/register.h"
 #include "target/breakpoints.h"
 #include "helper/time_support.h"
@@ -374,14 +375,14 @@ static void select_dmi(struct target *target)
 	if (strcmp(target->type->name, "riscv") != 0) {
 		if (!target->tap->enabled){
 			LOG_TARGET_ERROR(target, "BUG: Target's TAP '%s' is disabled!",
-					jtag_tap_name(target->tap));
+				wrapper_tap_name(target->tap));
 		}
 	}
 		
 	bool need_ir_scan = false;
 	/* FIXME: make "tap" a const pointer. */
 	for (struct jtag_tap *tap = jtag_tap_next_enabled(NULL);
-			tap; tap = jtag_tap_next_enabled(tap)) {
+			tap; tap = wrapper_tap_next_enabled(tap)) {
 		if (tap != target->tap) {
 			/* Different TAP than ours - check if it is in bypass */
 			if (!tap->bypass) {
@@ -458,18 +459,22 @@ static int batch_run_timeout(struct target *target, struct riscv_batch *batch);
 
 static int dmi_read(struct target *target, uint32_t *value, uint32_t address)
 {
-	struct riscv_batch *batch = riscv_batch_alloc(target, 1);
-	riscv_batch_add_dmi_read(batch, address, RISCV_DELAY_BASE);
-	int res = batch_run_timeout(target, batch);
-	if (res == ERROR_OK && value)
-		*value = riscv_batch_get_dmi_read_data(batch, 0);
-	riscv_batch_free(batch);
-	return res;
+	if (IS_TARGET_JTAG(target->type->name))
+	{
+			struct riscv_batch *batch = riscv_batch_alloc(target, 1);
+			riscv_batch_add_dmi_read(batch, address, RISCV_DELAY_BASE);
+			int res = batch_run_timeout(target, batch);
+			if (res == ERROR_OK && value)
+					*value = riscv_batch_get_dmi_read_data(batch, 0);
+			riscv_batch_free(batch);
+			return res;
+	}
+	return socket_dmi_read(target, value, address);
 }
 
 static int dm_read(struct target *target, uint32_t *value, uint32_t address)
 {
-	if (strcmp(target->type->name, "riscv") != 0){
+	if (IS_TARGET_JTAG(target->type->name)){
 		return dmi_read(target, value, riscv013_get_dmi_address(target, address));
 	} else {
 		return socket_dmi_read(target, value, address);
@@ -504,7 +509,7 @@ static int dmi_write(struct target *target, uint32_t address, uint32_t value)
 
 static int dm_write(struct target *target, uint32_t address, uint32_t value)
 {
-	if (strcmp(target->type->name, "riscv") != 0){
+	if (IS_TARGET_JTAG(target->type->name)){
 		return dmi_write(target, riscv013_get_dmi_address(target, address), value);
 	} else {
 		return socket_dmi_write(target, riscv013_get_dmi_address(target, address), value);
@@ -645,7 +650,7 @@ static uint8_t* get_buffer_values_from_uint32(uint32_t val){
 static size_t abstract_cmd_fill_batch(struct riscv_batch *batch,
 		uint32_t command)
 {
-	if (strcmp(batch->target->type->name, "riscv") != 0){
+	if (IS_TARGET_JTAG(batch->target->type->name)){
 		assert(riscv_batch_available_scans(batch)
 				>= ABSTRACT_COMMAND_BATCH_SIZE);
 		riscv_batch_add_dm_write(batch, DM_COMMAND, command, /* read_back */ true,
@@ -1841,7 +1846,15 @@ static int reset_dm(struct target *target)
 			uint32_t result_field = get_field(dmcontrol, DM_DMCONTROL_DMACTIVE);
 			LOG_TARGET_DEBUG(target, "******* result_field: %d", result_field);
 			result = dm_read(target, &dmcontrol, DM_DMCONTROL);
-			if (strcmp(target->type->name, "riscv") == 0){
+			if (! IS_TARGET_JTAG(target->type->name)){
+				// Without this piece of code communication over the socket fails
+				// The reason is that above we read the DMACTIVE status. If it was 1 it means it was active. 
+				// Then we see it is 1, we read it and send 1 back again to the target. 
+				// Now OpenOCD does something strange: 
+				// "If I see that you're telling me to be 1, but I'm already 1, that means you want me to reset."
+				// As a part of resetting it should eventually turn to 0 (off state). 
+				// This confirms reset is in progress.  We are waiting for the dmactive to be 0 in this do-while loop. 
+				// Here what I did is a bit of a hack since I never get dmstatus to be 0. 
 				dmcontrol = dmcontrol & ~1; // clear the last bit to indicate that the reset is complete
 			}
 			if (result != ERROR_OK)
@@ -1991,7 +2004,7 @@ static int examine(struct target *target)
 
 	uint32_t dtmcontrol;
 	
-	if (strcmp(target->type->name, "riscv") != 0){
+	if (IS_TARGET_JTAG(target->type->name)){
 		if (dtmcontrol_scan(target, 0, &dtmcontrol) != ERROR_OK || dtmcontrol == 0) {
 			LOG_TARGET_ERROR(target, "Could not scan dtmcontrol. Check JTAG connectivity/board power.");
 			return ERROR_FAIL;
