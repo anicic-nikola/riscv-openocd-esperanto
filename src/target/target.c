@@ -53,6 +53,7 @@
 /* default halt wait timeout (ms) */
 #define DEFAULT_HALT_TIMEOUT 5000
 
+
 static int target_read_buffer_default(struct target *target, target_addr_t address,
 		uint32_t count, uint8_t *buffer);
 static int target_write_buffer_default(struct target *target, target_addr_t address,
@@ -62,6 +63,9 @@ static int target_get_gdb_fileio_info_default(struct target *target,
 		struct gdb_fileio_info *fileio_info);
 static int target_gdb_fileio_end_default(struct target *target, int retcode,
 		int fileio_errno, bool ctrl_c);
+
+#define IS_TARGET_JTAG_WITH_CONDITION(name, additional_condition) ((strcmp(name, "riscv") != 0) && (additional_condition))
+
 
 static struct target_type *target_types[] = {
 	&arm7tdmi_target,
@@ -726,12 +730,10 @@ int target_examine(void)
 
 	for (target = all_targets; target; target = target->next) {
 		/* defer examination, but don't skip it */
-		if (strcmp(target->type->name, "riscv") != 0){
-			if (!target->tap->enabled) {
-				jtag_register_event_callback(jtag_enable_callback,
-						target);
-				continue;
-			}
+		if(IS_TARGET_JTAG_WITH_CONDITION(target->type->name, !target->tap->enabled)){
+			jtag_register_event_callback(jtag_enable_callback,
+							target);
+			continue;
 		}
 
 		if (target->defer_examine)
@@ -2981,9 +2983,8 @@ static int handle_target(void *priv)
 		 * schedule for now+polling_interval, the next poll won't
 		 * actually happen until a polling_interval later. */
 		bool poll_needed = timeval_ms() + polling_interval / 2 >= target->backoff.next_attempt;
-		if (strcmp(target->type->name, "riscv") != 0){
-			if (!target->tap->enabled || power_dropout || srst_asserted || !poll_needed)
-				continue;
+		if (IS_TARGET_JTAG_WITH_CONDITION(target->type->name, !target->tap->enabled || power_dropout || srst_asserted || !poll_needed)){
+			continue;
 		}
 
 		/* polling may fail silently until the target has been examined */
@@ -5822,13 +5823,13 @@ static int target_create(struct jim_getopt_info *goi)
 				e = JIM_ERR;
 			}
 		} else {
-			if (!target->tap_configured && strcmp(target->type->name, "riscv") != 0) {
+			if (IS_TARGET_JTAG_WITH_CONDITION(target->type->name, !target->tap_configured)){
 				Jim_SetResultString(goi->interp, "-chain-position ?name? required when creating target", -1);
 				e = JIM_ERR;
 			}
 		}
 		/* tap must be set after target was configured */
-		if (!target->tap && strcmp(target->type->name, "riscv") != 0)
+		if (IS_TARGET_JTAG_WITH_CONDITION(target->type->name, !target->tap))
 			e = JIM_ERR;
 	}
 
