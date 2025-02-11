@@ -2333,16 +2333,9 @@ static int riscv_examine(struct target *target)
 
 	RISCV_INFO(info);
 	uint32_t dtmcontrol;
-	if (IS_TARGET_JTAG(target->type->name)){
-		if (dtmcontrol_scan(target, 0, &dtmcontrol) != ERROR_OK || dtmcontrol == 0) {
-			LOG_TARGET_ERROR(target, "Could not read dtmcontrol. Check JTAG connectivity/board power.");
-			return ERROR_FAIL;
-		}
-	} else {
-		if (dtmcontrol_write(target, 0, &dtmcontrol) != ERROR_OK || dtmcontrol == 0) {
-			LOG_TARGET_ERROR(target, "Could not read dtmcontrol. Check socket connection/board power.");
-			return ERROR_FAIL;
-		}
+	if (dtmcontrol_scan(target, 0, &dtmcontrol) != ERROR_OK || dtmcontrol == 0) {
+		LOG_TARGET_ERROR(target, "Could not read dtmcontrol. Check JTAG connectivity/board power.");
+		return ERROR_FAIL;
 	}
 	
 	LOG_TARGET_DEBUG(target, "dtmcontrol=0x%x", dtmcontrol);
