@@ -474,12 +474,7 @@ static int dmi_read(struct target *target, uint32_t *value, uint32_t address)
 
 static int dm_read(struct target *target, uint32_t *value, uint32_t address)
 {
-	if (IS_TARGET_JTAG(target->type->name)){
-		return dmi_read(target, value, riscv013_get_dmi_address(target, address));
-	} else {
-		return socket_dmi_read(target, value, address);
-	}
-	
+	return dmi_read(target, value, riscv013_get_dmi_address(target, address));
 }
 
 static int dm_read_exec(struct target *target, uint32_t *value, uint32_t address)
