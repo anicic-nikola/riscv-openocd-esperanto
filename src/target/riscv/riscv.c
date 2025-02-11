@@ -412,6 +412,34 @@ int dtmcontrol_scan_via_bscan(struct target *target, uint32_t out, uint32_t *in_
 /* TODO: rename "dtmcontrol"-> "dtmcs" */
 int dtmcontrol_scan(struct target *target, uint32_t out, uint32_t *in_ptr)
 {
+	// if (! IS_TARGET_JTAG(target->type->name)){
+	// 	dtm_driver_t *driver = get_active_dtm_driver();
+	// 	if (driver == NULL) {
+	// 		LOG_ERROR("dtm_driver_t passed to dtmcontrol_scan is nullptr");
+	// 		return ERROR_FAIL;
+	// 	}
+	// 	if (driver->write_dmi(driver, DTM_DTMCS, out) != ERROR_OK) {
+	// 		LOG_TARGET_ERROR(target, "Failed to write to DTMCS");
+	// 		return ERROR_FAIL;
+	// 	}
+
+	// 	// Then, read back the value from DTMCS
+	// 	uint32_t in = 0;
+	// 	if (driver->read_dmi(driver, &in, DTM_DTMCS) != ERROR_OK) {
+	// 		LOG_TARGET_ERROR(target, "Failed to read from DTMCS");
+	// 		return ERROR_FAIL;
+	// 	}
+
+	// 	if (in_ptr) {
+	// 		*in_ptr = in;
+	// 		LOG_TARGET_DEBUG(target, "DTMCS: 0x%" PRIx32 " -> 0x%" PRIx32, out, in);
+	// 	} else {
+	// 		LOG_TARGET_DEBUG(target, "DTMCS: 0x%" PRIx32 " -> ?", out);
+	// 	}
+
+	// 	return ERROR_OK;
+	// }
+
 	uint8_t value[4];
 
 	if (bscan_tunnel_ir_width != 0)

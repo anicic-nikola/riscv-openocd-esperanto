@@ -185,9 +185,15 @@ int socket_dmi_deinit(dtm_driver_t *driver) {
 
 int socket_dmi_read_dmi(dtm_driver_t *driver, uint32_t *data, uint32_t address) {
     if (data == NULL) {
-        LOG_ERROR("data passed to this function is nullptr! Make sure to examine which pointer is passed to socket_dmi_read_dmi");
+        LOG_ERROR("data passed to socket_dmi_read_dmi function is nullptr! Make sure to examine which pointer is passed to socket_dmi_read_dmi");
         return ERROR_FAIL;
     }
+
+    if (driver == NULL) {
+        LOG_ERROR("driver passed to socket_dmi_read_dmi function is nullptr! Make sure to examine which pointer is passed to socket_dmi_read_dmi");
+        return ERROR_FAIL;
+    }
+
     LOG_DEBUG("socket_dmi_read_dmi from address: address: %x", address);
     if (!driver->priv) {
         return ERROR_FAIL;
