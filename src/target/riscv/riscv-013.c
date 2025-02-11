@@ -490,22 +490,20 @@ static int dm_read_exec(struct target *target, uint32_t *value, uint32_t address
 
 static int dmi_write(struct target *target, uint32_t address, uint32_t value)
 {
-	struct riscv_batch *batch = riscv_batch_alloc(target, 1);
-	riscv_batch_add_dmi_write(batch, address, value, /*read_back*/ true,
-			RISCV_DELAY_BASE);
-	int res = batch_run_timeout(target, batch);
-	riscv_batch_free(batch);
-	return res;
+	if (IS_TARGET_JTAG(target->type->name)){
+		struct riscv_batch *batch = riscv_batch_alloc(target, 1);
+		riscv_batch_add_dmi_write(batch, address, value, /*read_back*/ true,
+				RISCV_DELAY_BASE);
+		int res = batch_run_timeout(target, batch);
+		riscv_batch_free(batch);
+		return res;
+	}
+	return socket_dmi_write(target, address, value);
 }
 
 static int dm_write(struct target *target, uint32_t address, uint32_t value)
 {
-	if (IS_TARGET_JTAG(target->type->name)){
-		return dmi_write(target, riscv013_get_dmi_address(target, address), value);
-	} else {
-		return socket_dmi_write(target, riscv013_get_dmi_address(target, address), value);
-	}
-	
+	return dmi_write(target, riscv013_get_dmi_address(target, address), value);
 }
 
 static bool check_dbgbase_exists(struct target *target)
