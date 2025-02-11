@@ -412,6 +412,10 @@ int dtmcontrol_scan_via_bscan(struct target *target, uint32_t out, uint32_t *in_
 /* TODO: rename "dtmcontrol"-> "dtmcs" */
 int dtmcontrol_scan(struct target *target, uint32_t out, uint32_t *in_ptr)
 {
+	if (! IS_TARGET_JTAG(target->type->name)){
+		return dtmcontrol_write(target, out, in_ptr);
+	}
+
 	uint8_t value[4];
 
 	if (bscan_tunnel_ir_width != 0)

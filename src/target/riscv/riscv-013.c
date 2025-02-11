@@ -407,11 +407,7 @@ static int increase_dmi_busy_delay(struct target *target)
 	RISCV013_INFO(info);
 
 	int res = -1;
-	if (strcmp(target->type->name, "riscv") != 0){
-		res = dtmcontrol_scan(target, DTM_DTMCS_DMIRESET,NULL /* discard result */);
-	} else {
-		res = dtmcontrol_write(target, DTM_DTMCS_DMIRESET, NULL /* discard result */);
-	}
+	res = dtmcontrol_scan(target, DTM_DTMCS_DMIRESET,NULL /* discard result */);
 	
 	if (res != ERROR_OK)
 		return res;
