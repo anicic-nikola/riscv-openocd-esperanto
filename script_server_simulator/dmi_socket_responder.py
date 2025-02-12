@@ -177,6 +177,10 @@ def handle_dmi_read(address, conn):
             handle_dmi_read.dmi_dmcontrol_counter[0] += 1
             print(f"  DTMCONTROL read! Returning: 0x{data:08X}")
 
+        elif address == DMI_ABSTRACTCS:
+            print(f"Handling the {DMI_ABSTRACTCS} address")
+            data = 0x2000002
+
         elif address == DMI_DMSTATUS:
             print(f"  DMI_DMSTATUS read! Current value: 0x{data:08X}")
             # Define field values
